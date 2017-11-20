@@ -1,0 +1,13 @@
+[run]
+branch = True
+source =
+    gordon
+
+[paths]
+source =
+   gordon
+   .tox/*/lib/python*/site-packages/gordon
+   .tox/pypy/site-packages/gordon
+
+[report]
+show_missing = True

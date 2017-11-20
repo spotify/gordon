@@ -1,0 +1,3 @@
+include  *.md *.txt LICENSE tox.ini .travis.yml .coveragerc
+recursive-include gordon *.py
+recursive-include tests *.py
