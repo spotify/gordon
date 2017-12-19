@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-03/schema",
+
+  "title": "An action to perform on a DNS record.",
+  "description" : "Schema for creating or deleting selected DNS records.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "examples": [
+        "fully-qualified-instance-name-1234.subdomain.example.com",
+        "www.example.com"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "required": true,
+      "examples": [
+        "192.168.0.1",
+        "some-other-domain.example.com",
+        "some text value"
+      ]
+    },
+    "type": {
+      "type": "string",
+      "enum": ["A", "CNAME", "PTR", "TXT"],
+      "default": "A"
+    },
+    "action": {
+      "type": "string",
+      "enum": ["create", "delete"],
+      "default": "create"
+    }
+  }
+}
