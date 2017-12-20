@@ -1,13 +1,18 @@
-include *.txt LICENSE tox.ini .coveragerc
+include *.txt LICENSE tox.ini .coveragerc *.rst *.toml.example OWNERS
 recursive-include gordon *.py
 recursive-include tests *.py
+
+# Exclude service-specific config
+exclude gordon*.toml
 
 # Documentation
 include docs/Makefile
 recursive-include docs *.png
+recursive-include docs *.ico
 recursive-include docs *.py
 recursive-include docs *.rst
 prune docs/_build
 
 # No need for GitHub-specific files.
-exclude *.md .travis.yml
+prune .github
+exclude .travis.yml
