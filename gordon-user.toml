@@ -1,0 +1,5 @@
+# Gordon Core Config
+[logging]
+handlers = ["stream"]
+
+# Extension Config

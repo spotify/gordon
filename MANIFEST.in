@@ -1,3 +1,13 @@
-include  *.md *.txt LICENSE tox.ini .travis.yml .coveragerc
+include *.txt LICENSE tox.ini .coveragerc
 recursive-include gordon *.py
 recursive-include tests *.py
+
+# Documentation
+include docs/Makefile
+recursive-include docs *.png
+recursive-include docs *.py
+recursive-include docs *.rst
+prune docs/_build
+
+# No need for GitHub-specific files.
+exclude *.md .travis.yml
