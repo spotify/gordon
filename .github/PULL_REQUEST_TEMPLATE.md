@@ -1,7 +1,6 @@
 <!--  Thanks for sending a pull request!  Here are some tips for you:
-1. If this is your first time, read our contributor guidelines <TODO: LINK TO CONTRIBUTING.MD>  // is this necessary since github refers to it when opening a pull request?
-2. Follow the instructions for writing a release note: https://git.k8s.io/community/contributors/devel/pull-requests.md#write-release-notes-if-needed
-3. If the PR is unfinished, please prefix the subject line with [WIP], [DRAFT], or [RFC].
+1. If this is your first time, read our contributor guidelines <https://github.com/spotify/gordon/blob/master/CONTRIBUTING.rst>
+2. If the PR is unfinished, please prefix the subject line with [WIP], [DRAFT], or [RFC].
 -->
 
 **What this PR does / why we need it**:
