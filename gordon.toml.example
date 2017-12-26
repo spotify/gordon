@@ -1,0 +1,6 @@
+# Gordon Core Config
+[logging]
+level = "debug"
+handlers = ["syslog"]
+
+# Extension Config

@@ -1,4 +1,6 @@
 coverage==4.4.2
 flake8==3.5.0
+flake8-import-order==0.16
 pytest==3.2.5
+pytest-catchlog==1.2.2
 pytest-cov==2.5.1

@@ -55,3 +55,6 @@ coverage.xml
 docs/_build/
 
 .DS_Store
+
+# Service-specific configuration
+gordon*.toml

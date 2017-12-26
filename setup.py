@@ -18,7 +18,9 @@
 import codecs
 import os
 import re
-from setuptools import setup, find_packages
+
+from setuptools import find_packages
+from setuptools import setup
 
 
 HERE = os.path.abspath(os.path.dirname(__file__))
@@ -60,9 +62,10 @@ def install_requires():
 #####
 # Project-specific constants
 #####
-NAME = 'gordon'
+NAME = 'gordon-dns'
+PACKAGE_NAME = 'gordon'
 PACKAGES = find_packages(where='.')
-META_PATH = os.path.join(NAME, '__init__.py')
+META_PATH = os.path.join(PACKAGE_NAME, '__init__.py')
 KEYWORDS = ['dns', 'gcp']
 CLASSIFIERS = [
     'Development Status :: 1 - Planning',
