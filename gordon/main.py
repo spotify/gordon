@@ -40,6 +40,7 @@ import toml
 import ulogger
 
 from gordon import __version__ as version
+from gordon import plugins_loader
 
 
 def _load_config(root=''):
@@ -72,7 +73,7 @@ def setup(config_root=''):
     """
     config = _load_config(root=config_root)
 
-    logging_config = config.get('logging', {})
+    logging_config = config.get('core', {}).get('logging', {})
     log_level = logging_config.get('level', 'INFO').upper()
     log_handlers = logging_config.get('handlers') or ['syslog']
 
@@ -88,6 +89,11 @@ def setup(config_root=''):
               help='Directory where to find service configuration.')
 def run(config_root):
     config = setup(os.path.abspath(config_root))  # NOQA
+
+    plugin_names, plugins = plugins_loader.load_plugins(config)
+    if plugin_names:
+        logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}')
+
     logging.info(f'Starting gordon v{version}...')
 
 

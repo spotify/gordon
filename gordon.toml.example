@@ -1,6 +1,16 @@
 # Gordon Core Config
-[logging]
-level = "debug"
+[core]
+plugins = ["foo.plugin"]
+
+[core.logging]
+level = "info"
 handlers = ["syslog"]
 
-# Extension Config
+# Plugin Config
+["foo"]
+# global config to the general "foo" package
+bar = baz
+
+["foo.plugin"]
+# specific plugin config within "foo" package
+baz = bla

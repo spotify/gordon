@@ -24,6 +24,7 @@ User's Guide
    :maxdepth: 1
 
    config
+   plugins
    api
 
 

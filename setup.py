@@ -66,7 +66,7 @@ NAME = 'gordon-dns'
 PACKAGE_NAME = 'gordon'
 PACKAGES = find_packages(where='.')
 META_PATH = os.path.join(PACKAGE_NAME, '__init__.py')
-KEYWORDS = ['dns', 'gcp']
+KEYWORDS = ['dns']
 CLASSIFIERS = [
     'Development Status :: 1 - Planning',
     'License :: OSI Approved :: Apache Software License',
@@ -94,6 +94,12 @@ setup(
     maintainer=find_meta('author'),
     maintainer_email=find_meta('email'),
     packages=PACKAGES,
+    entry_points={
+        'console_scripts': [
+            'gordon = gordon.main:run'
+        ],
+        'gordon.plugins': []
+    },
     classifiers=CLASSIFIERS,
     keywords=KEYWORDS,
     zip_safe=False,

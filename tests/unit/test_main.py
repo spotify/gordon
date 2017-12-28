@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import mock
-
 import pytest
 from click.testing import CliRunner
 
@@ -26,7 +24,7 @@ from gordon import main
 # Tests for service setup
 #####
 @pytest.mark.parametrize('suffix', ['', '-user'])
-def test_load_config(tmpdir, suffix, config_file):
+def test_load_config(tmpdir, suffix, config_file, loaded_config):
     """
     Load prod and user config.
     """
@@ -34,8 +32,7 @@ def test_load_config(tmpdir, suffix, config_file):
     conf_file.write(config_file)
     config = main._load_config(root=conf_file.dirpath())
 
-    expected = {'logging': {'level': 'debug', 'handlers': ['stream']}}
-    assert expected == config
+    assert loaded_config == config
 
 
 def test_load_config_raises(tmpdir):
@@ -49,21 +46,20 @@ def test_load_config_raises(tmpdir):
     assert e.match('Cannot load Gordon configuration file from')
 
 
-def test_setup(tmpdir, monkeypatch, config_file):
+def test_setup(tmpdir, mocker, monkeypatch, config_file, loaded_config):
     """
     Setup service config and logging.
     """
     conf_file = tmpdir.mkdir('config').join('gordon.toml')
     conf_file.write(config_file)
 
-    ulogger_mock = mock.MagicMock(main.ulogger, autospec=True)
-    ulogger_mock.setup_logging = mock.Mock()
+    ulogger_mock = mocker.MagicMock(main.ulogger, autospec=True)
+    ulogger_mock.setup_logging = mocker.Mock()
     monkeypatch.setattr(main, 'ulogger', ulogger_mock)
 
-    config = main.setup(conf_file.dirpath())
+    config = main.setup(config_root=conf_file.dirpath())
 
-    expected = {'logging': {'level': 'debug', 'handlers': ['stream']}}
-    assert expected == config
+    assert loaded_config == config
 
     ulogger_mock.setup_logging.assert_called_once_with(
         progname='gordon', level='DEBUG', handlers=['stream'])
@@ -72,16 +68,32 @@ def test_setup(tmpdir, monkeypatch, config_file):
 #####
 # Tests for running service
 #####
-def test_run(monkeypatch, caplog):
+run_args = 'has_active_plugins,exp_log_count'
+run_params = [
+    (True, 2),
+    (False, 1),
+]
+
+
+@pytest.mark.parametrize(run_args, run_params)
+def test_run(has_active_plugins, exp_log_count, plugins, mocker,
+             monkeypatch, caplog):
     """
     Successfully start the Gordon service.
     """
-    setup_mock = mock.MagicMock(main.setup, autospec=True)
+    setup_mock = mocker.MagicMock(main.setup, autospec=True)
     monkeypatch.setattr(main, 'setup', setup_mock)
+
+    if has_active_plugins:
+        load_plugins_mock = mocker.MagicMock(
+            main.plugins_loader.load_plugins, autospec=True)
+        load_plugins_mock.return_value = plugins
+        monkeypatch.setattr(
+            main.plugins_loader, 'load_plugins', load_plugins_mock)
 
     runner = CliRunner()
     result = runner.invoke(main.run)
 
     assert 0 == result.exit_code
     setup_mock.assert_called_once()
-    assert 1 == len(caplog.records)
+    assert exp_log_count == len(caplog.records)
