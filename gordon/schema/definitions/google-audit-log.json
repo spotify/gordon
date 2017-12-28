@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-03/schema",
+
+  "title": "Google Audit Log",
+  "description" : "Schema for parsing Google Audit Log messages.",
+  "properties": {
+    "methodName": {
+      "type": "string",
+      "required": true,
+      "description": "Action performed on GCP instance.",
+      "enum": ["v1.compute.instances.insert", "v1.compute.instances.delete"]
+    },
+    "resourceName": {
+      "type": "string",
+      "required": true,
+      "description": "REST name for instance, containing project and zone.",
+      "examples": [
+        "/projects/a-project-name/zones/a-zone-name/instances/an-instance-name"
+      ]
+    }
+  }
+}
