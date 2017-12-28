@@ -17,12 +17,11 @@
 Module for reusable pytest fixtures.
 """
 
-
 import pytest
 
 
 @pytest.fixture(scope='session')
-def config_fixture():
+def config_file():
     return ('[logging]\n'
             'level = "debug"\n'
             'handlers = ["stream"]')

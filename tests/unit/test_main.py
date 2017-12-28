@@ -26,12 +26,12 @@ from gordon import main
 # Tests for service setup
 #####
 @pytest.mark.parametrize('suffix', ['', '-user'])
-def test_load_config(tmpdir, suffix, config_fixture):
+def test_load_config(tmpdir, suffix, config_file):
     """
     Load prod and user config.
     """
     conf_file = tmpdir.mkdir('config').join('gordon{}.toml'.format(suffix))
-    conf_file.write(config_fixture)
+    conf_file.write(config_file)
     config = main._load_config(root=conf_file.dirpath())
 
     expected = {'logging': {'level': 'debug', 'handlers': ['stream']}}
@@ -49,12 +49,12 @@ def test_load_config_raises(tmpdir):
     assert e.match('Cannot load Gordon configuration file from')
 
 
-def test_setup(tmpdir, monkeypatch, config_fixture):
+def test_setup(tmpdir, monkeypatch, config_file):
     """
     Setup service config and logging.
     """
     conf_file = tmpdir.mkdir('config').join('gordon.toml')
-    conf_file.write(config_fixture)
+    conf_file.write(config_file)
 
     ulogger_mock = mock.MagicMock(main.ulogger, autospec=True)
     ulogger_mock.setup_logging = mock.Mock()
