@@ -57,7 +57,7 @@ Workflow
 * Ideally, a branch should map to a pull request. It is possible to have multiple pull requests on one branch, but is discouraged for simplicity.
 * Do not submit unrelated changes on the same branch/pull request.
 * Multiple commits on a branch/pull request is fine, but all should be atomic, and relevant to the goal of the PR. Code changes for a bug fix, plus additional tests (or fixes to tests) and documentation should all be in one commit.
-* Pull requests should be rebased off of master.
+* Pull requests should be rebased off of the ``develop`` branch.
 
 Code
 ****
