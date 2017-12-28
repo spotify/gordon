@@ -88,7 +88,7 @@ def setup(config_root=''):
               help='Directory where to find service configuration.')
 def run(config_root):
     config = setup(os.path.abspath(config_root))  # NOQA
-    logging.info('Starting gordon v{}...'.format(version))
+    logging.info(f'Starting gordon v{version}...')
 
 
 if __name__ == '__main__':
