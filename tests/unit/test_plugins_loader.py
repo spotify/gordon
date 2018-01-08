@@ -73,7 +73,7 @@ def mock_iter_entry_points(mocker, monkeypatch, plugins):
 def test_init_plugins(plugins, plugin_config, exp_inited_plugins):
     """Plugins are initialized with their config."""
     active_plugins = ['one.plugin', 'two.plugin']
-    inited_names, inited_plugins = plugins_loader._init_plugins(
+    inited_names, inited_plugins, errors = plugins_loader._init_plugins(
         active_plugins, plugins, plugin_config)
 
     assert active_plugins == sorted(inited_names)
@@ -82,8 +82,8 @@ def test_init_plugins(plugins, plugin_config, exp_inited_plugins):
         assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
 
 
-def test_init_plugins_raises(mocker):
-    """Non-callable plugin raises LoadPluginError."""
+def test_init_plugins_exceptions(mocker):
+    """Non-callable plugin returns plugin-specific exceptions."""
     name = 'B0rkedPlugin'
     config = {'B0rkedPlugin': {'foo': 'bar'}}
 
@@ -92,10 +92,9 @@ def test_init_plugins_raises(mocker):
     plugin_mock.load.return_value = 'not_a_class'
     plugins = {name: plugin_mock}
 
-    with pytest.raises(exceptions.LoadPluginsError) as e:
-        plugins_loader._init_plugins([name], plugins, config)
-
-    e.match('Could not load B0rkedPlugin: ')
+    inited_names, inited_plugins, errors = plugins_loader._init_plugins(
+        [name], plugins, config)
+    assert 1 == len(errors)
 
 
 def test_init_plugins_skipped(plugins, plugin_config, caplog):
@@ -103,7 +102,7 @@ def test_init_plugins_skipped(plugins, plugin_config, caplog):
     active_plugins = ['one.plugin', 'two.plugin']
     config = {'one.plugin': plugin_config['one.plugin']}
 
-    inited_names, inited_plugins = plugins_loader._init_plugins(
+    inited_names, inited_plugins, errors = plugins_loader._init_plugins(
         active_plugins, plugins, config)
 
     assert 1 == len(inited_plugins) == len(inited_names)
@@ -118,7 +117,7 @@ def test_init_plugins_empty_config(plugins):
         'two.plugin': {}
     }
 
-    inited_names, inited_plugins = plugins_loader._init_plugins(
+    inited_names, inited_plugins, errors = plugins_loader._init_plugins(
         active_plugins, plugins, config)
 
     assert 2 == len(inited_plugins) == len(inited_names)
@@ -130,7 +129,7 @@ def test_init_plugins_empty_config(plugins):
 def test_init_plugins_skip_inactive(plugins, plugin_config):
     """Skips plugins that are not activated in core config."""
     active_plugins = ['one.plugin']
-    inited_names, inited_plugins = plugins_loader._init_plugins(
+    inited_names, inited_plugins, errors = plugins_loader._init_plugins(
         active_plugins, plugins, plugin_config)
 
     assert 1 == len(inited_plugins) == len(inited_names)
@@ -201,7 +200,7 @@ def test_get_activated_plugins_raises(loaded_config, plugins):
     """Raise when activated plugins are not installed."""
     loaded_config['core']['plugins'].append('three.plugin')
 
-    with pytest.raises(exceptions.LoadPluginsError) as e:
+    with pytest.raises(exceptions.LoadPluginError) as e:
         plugins_loader._get_activated_plugins(loaded_config, plugins)
 
     e.match('Plugin "three.plugin" not installed')
@@ -216,7 +215,8 @@ def test_gather_installed_plugins(mock_iter_entry_points, plugins):
 def test_load_plugins(mock_iter_entry_points, loaded_config, plugins,
                       exp_inited_plugins):
     """Plugins are loaded and instantiated with their config."""
-    inited_names, loaded_plugins = plugins_loader.load_plugins(loaded_config)
+    inited_names, loaded_plugins, errors = plugins_loader.load_plugins(
+        loaded_config)
 
     assert 2 == len(inited_names) == len(loaded_plugins)
     for plugin_obj in loaded_plugins:
@@ -230,5 +230,23 @@ def test_load_plugins_none_loaded(mocker, plugins, exp_inited_plugins):
     mock_iter_entry_points.return_value = []
 
     loaded_config = {'core': {}}
-    inited_names, loaded_plugins = plugins_loader.load_plugins(loaded_config)
-    assert [] == loaded_plugins == inited_names
+    inited_names, loaded_plugins, errors = plugins_loader.load_plugins(
+        loaded_config)
+    assert [] == loaded_plugins == inited_names == errors
+
+
+def test_load_plugins_exceptions(plugins, exp_inited_plugins, loaded_config,
+                                 mock_iter_entry_points, plugin_exc_mock,
+                                 mocker, monkeypatch):
+    """Loading plugin exceptions are returned."""
+    names = ['one.plugin', 'two.plugin']
+    inited_plugins_mock = mocker.MagicMock(
+        plugins_loader._init_plugins, autospec=True)
+
+    exc = [('bad.plugin', plugin_exc_mock)]
+    inited_plugins_mock.return_value = names, inited_plugins_mock, exc
+    monkeypatch.setattr(plugins_loader, '_init_plugins', inited_plugins_mock)
+
+    inited_names, loaded_plugins, errors = plugins_loader.load_plugins(
+        loaded_config)
+    assert 1 == len(errors)

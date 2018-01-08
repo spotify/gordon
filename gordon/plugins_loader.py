@@ -65,8 +65,7 @@ PLUGIN_NAMESPACE = 'gordon.plugins'
 
 
 def _init_plugins(active_plugins, installed_plugins, plugin_configs):
-    inited_plugins = []
-    inited_plugin_names = []
+    inited_plugins, inited_plugin_names, errors = [], [], []
     for plugin_name, unloaded_plugin in installed_plugins.items():
         if plugin_name not in active_plugins:
             continue
@@ -84,13 +83,12 @@ def _init_plugins(active_plugins, installed_plugins, plugin_configs):
 
         try:
             plugin_object = plugin_class(plugin_config)
+            inited_plugins.append(plugin_object)
+            inited_plugin_names.append(plugin_name)
         except Exception as e:
-            msg = f'Could not load {plugin_name}: {e}'
-            raise exceptions.LoadPluginsError(msg)
+            errors.append((plugin_name, e))
 
-        inited_plugins.append(plugin_object)
-        inited_plugin_names.append(plugin_name)
-    return inited_plugin_names, inited_plugins
+    return inited_plugin_names, inited_plugins, errors
 
 
 def _merge_config(config, namespace):
@@ -178,7 +176,7 @@ def _get_activated_plugins(config, installed_plugins):
     for active_plugin in activated_plugins:
         if active_plugin not in installed_plugins:
             msg = f'Plugin "{active_plugin}" not installed'
-            raise exceptions.LoadPluginsError(msg)
+            raise exceptions.LoadPluginError(msg)
     return activated_plugins
 
 
@@ -204,7 +202,7 @@ def load_plugins(config):
     installed_plugins = _gather_installed_plugins()
     active_plugins = _get_activated_plugins(config, installed_plugins)
     if not active_plugins:
-        return [], []
+        return [], [], []
     plugin_namespaces = _get_plugin_config_keys(installed_plugins)
     plugin_configs = _load_plugin_configs(plugin_namespaces, config)
     return _init_plugins(active_plugins, installed_plugins, plugin_configs)

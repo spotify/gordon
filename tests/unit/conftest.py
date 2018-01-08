@@ -26,10 +26,19 @@ class FakePlugin:
         self.config = config
 
 
+@pytest.fixture
+def plugin_exc_mock():
+    class FakePluginException(Exception):
+        """Exception raised from a plugin when loading"""
+        pass
+    return FakePluginException('dangit')
+
+
 @pytest.fixture(scope='session')
 def config_file():
     return ('[core]\n'
             'plugins = ["one.plugin", "two.plugin"]\n'
+            'debug = true\n'
             '[core.logging]\n'
             'level = "debug"\n'
             'handlers = ["stream"]\n'
@@ -47,6 +56,7 @@ def loaded_config():
     return {
         'core': {
             'plugins': ['one.plugin', 'two.plugin'],
+            'debug': True,
             'logging': {
                 'level': 'debug',
                 'handlers': ['stream'],

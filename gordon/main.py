@@ -83,14 +83,32 @@ def setup(config_root=''):
     return config
 
 
+def _log_or_exit_on_exceptions(errors, debug):
+    log_level_func = logging.warn
+    if not debug:
+        log_level_func = logging.error
+
+    base_msg = 'Plugin "{name}" was not loaded:'
+    for name, exc in errors:
+        msg = base_msg.format(name=name)
+        log_level_func(msg, exc_info=exc)
+
+    if not debug:
+        raise SystemExit(1)
+
+
 @click.command()
 @click.option('-c', '--config-root',
               type=click.Path(exists=True), required=False, default='.',
               help='Directory where to find service configuration.')
 def run(config_root):
     config = setup(os.path.abspath(config_root))  # NOQA
+    debug_mode = config.get('core', {}).get('debug', False)
 
-    plugin_names, plugins = plugins_loader.load_plugins(config)
+    plugin_names, plugins, errors = plugins_loader.load_plugins(config)
+    if errors:
+        _log_or_exit_on_exceptions(errors, debug_mode)
+
     if plugin_names:
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}')
 

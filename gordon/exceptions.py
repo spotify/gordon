@@ -18,5 +18,5 @@ class GordonError(Exception):
     """General Gordon Application Error."""
 
 
-class LoadPluginsError(GordonError):
-    """Error loading expected plugins."""
+class LoadPluginError(GordonError):
+    """Error loading plugin."""

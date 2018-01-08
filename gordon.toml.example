@@ -1,6 +1,7 @@
 # Gordon Core Config
 [core]
 plugins = ["foo.plugin"]
+debug = false
 
 [core.logging]
 level = "info"
