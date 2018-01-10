@@ -40,6 +40,7 @@ import toml
 import ulogger
 
 from gordon import __version__ as version
+from gordon import plugins_loader
 
 
 def _load_config(root=''):
@@ -72,7 +73,7 @@ def setup(config_root=''):
     """
     config = _load_config(root=config_root)
 
-    logging_config = config.get('logging', {})
+    logging_config = config.get('core', {}).get('logging', {})
     log_level = logging_config.get('level', 'INFO').upper()
     log_handlers = logging_config.get('handlers') or ['syslog']
 
@@ -82,13 +83,36 @@ def setup(config_root=''):
     return config
 
 
+def _log_or_exit_on_exceptions(errors, debug):
+    log_level_func = logging.warn
+    if not debug:
+        log_level_func = logging.error
+
+    base_msg = 'Plugin "{name}" was not loaded:'
+    for name, exc in errors:
+        msg = base_msg.format(name=name)
+        log_level_func(msg, exc_info=exc)
+
+    if not debug:
+        raise SystemExit(1)
+
+
 @click.command()
 @click.option('-c', '--config-root',
               type=click.Path(exists=True), required=False, default='.',
               help='Directory where to find service configuration.')
 def run(config_root):
     config = setup(os.path.abspath(config_root))  # NOQA
-    logging.info('Starting gordon v{}...'.format(version))
+    debug_mode = config.get('core', {}).get('debug', False)
+
+    plugin_names, plugins, errors = plugins_loader.load_plugins(config)
+    if errors:
+        _log_or_exit_on_exceptions(errors, debug_mode)
+
+    if plugin_names:
+        logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}')
+
+    logging.info(f'Starting gordon v{version}...')
 
 
 if __name__ == '__main__':

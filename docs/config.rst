@@ -10,18 +10,18 @@ Example Configuration
 
 An example of a ``gordon.toml`` file:
 
-.. code-block:: ini
-
-    [logging]
-    level = "info"
-    handlers = ["syslog"]
+.. literalinclude:: ../gordon.toml.example
+    :language: ini
 
 
 You may choose to have a ``gordon-user.toml`` file for development. Any top-level key will override what's found in ``gordon.toml``.
 
 .. code-block:: ini
 
-    [logging]
+    [core]
+    debug = true
+
+    [core.logging]
     level = "debug"
     handlers = ["stream"]
 
@@ -31,8 +31,26 @@ Supported Configuration
 
 The following sections are supported:
 
-logging
-~~~~~~~
+core
+~~~~
+
+.. option:: plugins=LIST-OF-STRINGS
+
+    Plugins that the Gordon service needs to load. If a plugin is not listed, Gordon will skip it even if there's configuration.
+
+    The strings must match the plugin's config key. See the plugin's documentation for config key names.
+
+.. option:: debug=true|false
+
+    Whether or not to run the Gordon service in ``debug`` mode.
+
+    If ``true``, Gordon will continue running even if installed & configured plugins can not be loaded. Plugin exceptions will be logged as warnings with tracebacks.
+
+    If ``false``, Gordon will exit out if it can't load one or more plugins.
+
+
+core.logging
+~~~~~~~~~~~~
 
 .. option:: level=info(default)|debug|warning|error|critical
 
