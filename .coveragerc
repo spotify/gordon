@@ -2,6 +2,7 @@
 branch = True
 source =
     gordon
+omit = gordon/interfaces.py
 
 [paths]
 source =
