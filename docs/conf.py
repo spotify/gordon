@@ -58,8 +58,8 @@ extensions = [
     'sphinx.ext.napoleon',
     # link to other projects' documentation
     'sphinx.ext.intersphinx',
-    # allow autodoc to work with zope.interface interfaces
-    'repoze.sphinx.autointerface',
+    # zope interface doc help
+    'sphinxcontrib.zopeext.autointerface',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

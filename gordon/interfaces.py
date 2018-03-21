@@ -46,23 +46,23 @@ class IEventMessage(Interface):
 class IGenericPlugin(Interface):
     """**Do not** implement this interface directly.
 
-    Use :py:class:`gordon.interfaces.IEventConsumerClient`,
-    :py:class:`gordon.interfaces.IEnricherClient`,
-    or :py:class:`gordon.interfaces.IPublisherClient` instead.
+    Use :interface:`IEventConsumerClient`, :interface:`IEnricherClient`,
+    or :interface:`IPublisherClient` instead.
     """
     phase = Attribute('Plugin phase')
 
-    def __init__(config, success_channel, error_channel, loop, metrics=None):
-        """Initialize an EventClient object.
+    def __init__(config, success_channel, error_channel, **plugin_kwargs):
+        """Initialize a plugin object.
 
         Args:
             config (dict): plugin-specific configuration
-            success_channel (asyncio.Queue): a sink for successfully processed
-                IEventMessages.
-            error_channel (asyncio.Queue): a sink for IEventMessages that were
-                not processed due to problems.
-            loop (obj): object implementing asyncio.AbstractEventLoop.
-            metrics (obj): Optional obj used to emit metrics.
+            success_channel (asyncio.Queue): a channel for successfully
+                processed :interface:`IEventMessage`s.
+            error_channel (asyncio.Queue): a channel for
+                :interface:`IEventMessage`s that were not processed due
+                to problems.
+            plugin_kwargs (dict): Plugin-specific keyword arguments. See
+                specific interface declarations.
         """
 
     async def update_phase(event_msg):
@@ -72,28 +72,33 @@ class IGenericPlugin(Interface):
             event_msg (IEventMessage): message with stale phase.
         """
 
+    async def run():
+        """Start plugin in the main event loop.
+
+        All plugins require explicit running in order to start consuming
+        and publishing to the respective channels.
+        """
+
 
 class IEventConsumerClient(IGenericPlugin):
-    """Client for ingesting push/pull events for Gordon to process.
+    """Ingest push/pull events for Gordon to process.
 
     The client also  receives both successful and failed
-    :py:class:`gordon.interfaces.IEventMessage` objects from Gordon in order
+    :interface:`IEventMessage` objects from Gordon in order
     to perform cleanup if needed.
     """
 
-    async def start():
-        """Begin consuming messages using the provided event loop."""
-
     async def cleanup(event_msg):
-        """Perform cleanup tasks related to a message.
+        """Clean up tasks related to a message.
 
         Args:
-            event_msg (IEventMessage): message at the end of its life cycle.
+            event_msg (IEventMessage): message at the end of its
+                lifecycle.
         """
 
 
 class IEnricherClient(IGenericPlugin):
-    """Client for processing (enriching) or filtering events received by Gordon.
+    """Process (enrich) or filter events received by Gordon.
 
     Note that if no extra processing is required, the implementer can
     immediately push the received event into the success_channel.
@@ -108,11 +113,12 @@ class IEnricherClient(IGenericPlugin):
 
 
 class IPublisherClient(IGenericPlugin):
-    """Client for publishing processed events to their destination."""
+    """Publish enriched events to their destination."""
 
     async def publish_changes(event_msg):
-        """Publish processed event to its destination.
+        """Publish an enriched event to its destination.
 
         Args:
-            event_msg (IEventMessage): message ready to be sent to destination.
+            event_msg (IEventMessage): message ready to be sent to
+                destination.
         """
