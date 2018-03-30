@@ -58,6 +58,8 @@ Workflow
 * Do not submit unrelated changes on the same branch/pull request.
 * Multiple commits on a branch/pull request is fine, but all should be atomic, and relevant to the goal of the PR. Code changes for a bug fix, plus additional tests (or fixes to tests) and documentation should all be in one commit.
 * Pull requests should be rebased off of the ``develop`` branch.
+* To finish and merge a release branch, project maintainers should first create a PR to merge the branch into ``develop``. Then, they should merge the release branch into ``master`` locally and push to master afterwards.
+* Bugfixes meant for a specific release branch should be merged into that branch through PRs.
 
 Code
 ****
