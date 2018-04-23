@@ -34,21 +34,21 @@ def record_checker_instance():
 def record_1(mocker):
     record_mock = mocker.Mock(Record)
     record_mock.qtype = 1
-    record_mock.name = 'ns1.dnsowl.com'
-    record_mock.data = '185.34.216.159'
+    record_mock.name = 'example.com'
+    record_mock.data = '127.1.1.1'
     record_mock.ttl = 10686
     return record_mock
 
 
 @pytest.fixture
 def record_2(record_1):
-    record_1.data = '173.254.242.221'
+    record_1.data = '127.1.1.2'
     return record_1
 
 
 @pytest.fixture
 def record_3(record_1):
-    record_1.data = '198.251.84.16'
+    record_1.data = '127.1.1.3'
     return record_1
 
 
@@ -77,7 +77,7 @@ def get_mock_coro(mocker):
 @pytest.fixture
 def mock_resolve_query(mocker, get_mock_coro, record_checker_instance):
     mock, _coroutine = get_mock_coro()
-    mocker.patch.object(record_checker_instance._resolver, "query", _coroutine)
+    mocker.patch.object(record_checker_instance._resolver, 'query', _coroutine)
     return mock
 
 
@@ -87,17 +87,17 @@ async def test_check_record_time_range_check(
         mock_resolve_query, dns_query_response):
     """Test the time it took to check a record is in expected range"""
     record_to_check = {
-        "name": "ns1.dnsowl.com",
-        "rrdatas": ["198.251.84.16", "173.254.242.221", "185.34.216.159"],
-        "type": "A",
-        "ttl": 10686
+        'name': 'example.com',
+        'rrdatas': ['127.1.1.1', '127.1.1.2', '127.1.1.3'],
+        'type': 'A',
+        'ttl': 10686
     }
 
     mock_resolve_query.return_value = dns_query_response
 
     await record_checker_instance.check_record(record_to_check)
     time_it_took_to_check_record = float(caplog.records[0].msg)
-    assert 0 < time_it_took_to_check_record < 1.005
+    assert 0 < time_it_took_to_check_record < 3
 
 
 @pytest.mark.asyncio
@@ -108,10 +108,10 @@ async def test_check_record_failed(
     """Test we get a failure logging msg for the case of failure:
         we didn't get available record from the DNS"""
     record_to_check = {
-        "name": "ns1.dnsowl.com",
-        "rrdatas": ["198.251.84.15", "173.254.242.221", "185.34.216.159"],
-        "type": "A",
-        "ttl": 10686
+        'name': 'example.com',
+        'rrdatas': ['127.1.1.1', '127.1.1.2', '127.1.1.3'],
+        'type': 'A',
+        'ttl': 1068
     }
 
     mock_resolve_query.return_value = dns_query_response
@@ -132,13 +132,13 @@ async def test_check_number_of_rrdata_is_not_equal(
         record_checker_instance, caplog,
         mock_resolve_query, dns_query_response):
     """Test that we fail on getting number of records
-        from the srv which is not eqaule to the
+        from the server which is not equal to the
         len of rrdata of our record """
     record_to_check = {
-        "name": "ns1.dnsowl.com",
-        "rrdatas": ["198.251.84.16", "173.254.242.221"],
-        "type": "A",
-        "ttl": 10686
+        'name': 'example.com',
+        'rrdatas': ['127.1.1.1', '127.1.1.2'],
+        'type': 'A',
+        'ttl': 10686
     }
 
     mock_resolve_query.return_value = dns_query_response
