@@ -18,8 +18,11 @@ import asyncio
 import logging
 import time
 
-from async_dns import types
+import async_dns
+
 from async_dns.resolver import ProxyResolver
+
+from gordon import exceptions
 
 
 class RecordChecker(object):
@@ -32,13 +35,20 @@ class RecordChecker(object):
         """
         self._dns_ip = dns_ip
         self._resolver = ProxyResolver()
-        self._resolver.set_proxies([self._dns_ip])
+        try:
+            self._resolver.set_proxies([self._dns_ip])
+        except async_dns.address.InvalidHost as e:
+            msg = f'RecordChecker got invalid DNS server ip: {e}'
+            raise exceptions.InvalidDNSHost(msg)
 
     def _extract_record_data(self, record):
         """Extract record data from a record dict
 
         Args:
             record (dict): DNS record as a dict
+
+        Returns:
+            The record data: name, rrdata, type and ttl
         """
         return record.values()
 
@@ -57,27 +67,27 @@ class RecordChecker(object):
         start_time = time.time()
 
         name, rr_data, r_type, ttl = self._extract_record_data(record)
-        r_type_code = types.get_code(r_type)
+        r_type_code = async_dns.types.get_code(r_type)
 
-        record_found_in_dns_srv = False
+        resolvable_record = False
         retries = 0
-        sleep_time = 2
+        sleep_time = 5
 
-        while not record_found_in_dns_srv and \
-                timeout > sleep_time:
+        while not resolvable_record and \
+                timeout > retries * sleep_time:
 
             retries += 1
             resolver_res = await self._resolver.query(name, r_type_code)
             possible_ans = resolver_res.an
 
-            record_found_in_dns_srv = \
+            resolvable_record = \
                 await self._check_resolver_ans(possible_ans, name,
                                                rr_data, ttl, r_type_code)
 
-            sleep_time = self._get_wait_time_exp(retries)
-            await asyncio.sleep(sleep_time)
+            if not resolvable_record:
+                await asyncio.sleep(sleep_time)
 
-        if not record_found_in_dns_srv:
+        if not resolvable_record:
             logging.info(
                 f'Sending metric record-checker-failed: {record}')
         else:
@@ -85,33 +95,34 @@ class RecordChecker(object):
             logging.info(final_time)
 
     async def _check_resolver_ans(
-            self, dns_ans_lst, name, rr_data, ttl, r_type_code):
+            self, dns_answer_list, record_name,
+            record_ip_list, record_ttl, record_type_code):
         """Check if resolver answer is equal to record data.
 
         Args:
-            dns_ans_lst (list): DNS answer list contains record objects
-            name (str): record name
-            rr_data (list): list of ips for the record
-            ttl (int): record time ot live info
-            r_type_code (int): record type code
+            dns_answer_list (list): DNS answer list contains record objects
+            record_name (str): record name
+            record_ip_list (list): list of ips for the record
+            record_ttl (int): record time ot live info
+            record_type_code (int): record type code
 
         Returns:
             boolean indicating if DNS ans data is equal to record data
         """
-        type_filtered_lst = [
-            ans for ans in dns_ans_lst if ans.qtype == r_type_code
+        type_filtered_list = [
+            ans for ans in dns_answer_list if ans.qtype == record_type_code
         ]
 
         # check to see that type_filtered_lst has
-        # the same number of records as record rr_data
-        if len(type_filtered_lst) != len(rr_data):
+        # the same number of records as record_ip_list
+        if len(type_filtered_list) != len(record_ip_list):
             return False
 
         # check each record data is equal to the given data
-        for rec in type_filtered_lst:
-            conditions = [name == rec.name,
-                          rec.data in rr_data,
-                          rec.ttl == ttl]
+        for rec in type_filtered_list:
+            conditions = [rec.name == record_name,
+                          rec.data in record_ip_list,
+                          rec.ttl == record_ttl]
 
             # if ans record data is not equal
             # to the given data return False
@@ -119,7 +130,3 @@ class RecordChecker(object):
                 return False
 
         return True
-
-    def _get_wait_time_exp(self, retries):
-        """Returns the next wait interval, using an exponential back off"""
-        return pow(2, retries)

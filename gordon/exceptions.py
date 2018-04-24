@@ -20,3 +20,7 @@ class GordonError(Exception):
 
 class LoadPluginError(GordonError):
     """Error loading plugin."""
+
+
+class InvalidDNSHost(GordonError):
+    """Error when given invalid DNS server to query"""

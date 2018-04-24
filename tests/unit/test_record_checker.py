@@ -17,7 +17,7 @@
 import pytest
 from async_dns import Record
 
-from gordon import record_checker
+from gordon import record_checker, exceptions
 
 
 #####
@@ -26,8 +26,8 @@ from gordon import record_checker
 
 @pytest.fixture
 def record_checker_instance():
-    dnc_ip = '8.8.8.8'
-    return record_checker.RecordChecker(dnc_ip)
+    dns_ip = '8.8.8.8'
+    return record_checker.RecordChecker(dns_ip)
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ def mock_resolve_query(mocker, get_mock_coro, record_checker_instance):
 
 
 @pytest.mark.asyncio
-async def test_check_record_time_range_check(
+async def test_check_time_on_success(
         record_checker_instance, caplog,
         mock_resolve_query, dns_query_response):
     """Test the time it took to check a record is in expected range"""
@@ -96,17 +96,22 @@ async def test_check_record_time_range_check(
     mock_resolve_query.return_value = dns_query_response
 
     await record_checker_instance.check_record(record_to_check)
+
     time_it_took_to_check_record = float(caplog.records[0].msg)
-    assert 0 < time_it_took_to_check_record < 3
+
+    max_time_to_sleep_when_success = 6
+    assert 0 < time_it_took_to_check_record < max_time_to_sleep_when_success
 
 
 @pytest.mark.asyncio
-async def test_check_record_failed(
+async def test_check_record_failure_ttl_not_equal(
         mocker, get_mock_coro,
         record_checker_instance, caplog,
         mock_resolve_query, dns_query_response):
-    """Test we get a failure logging msg for the case of failure:
-        we didn't get available record from the DNS"""
+    """Test failure timeout.
+
+    The failure happens because the ttl is not equal.
+    """
     record_to_check = {
         'name': 'example.com',
         'rrdatas': ['127.1.1.1', '127.1.1.2', '127.1.1.3'],
@@ -127,13 +132,15 @@ async def test_check_record_failed(
 
 
 @pytest.mark.asyncio
-async def test_check_number_of_rrdata_is_not_equal(
+async def test_length_of_rrdata_is_not_equal(
         mocker, get_mock_coro,
         record_checker_instance, caplog,
         mock_resolve_query, dns_query_response):
-    """Test that we fail on getting number of records
-        from the server which is not equal to the
-        len of rrdata of our record """
+    """Test failure timeout.
+
+    The failure happens because the length of
+        rrdatas list is not equal.
+    """
     record_to_check = {
         'name': 'example.com',
         'rrdatas': ['127.1.1.1', '127.1.1.2'],
@@ -151,3 +158,15 @@ async def test_check_number_of_rrdata_is_not_equal(
 
     expected_msg = f'Sending metric record-checker-failed: {record_to_check}'
     assert expected_msg == failed_msg
+
+
+@pytest.mark.asyncio
+async def test_proxy_resolver_failure():
+    """Test record checker got invalid dns ip"""
+    dns_ip = '8.855.0.5'
+
+    with pytest.raises(exceptions.InvalidDNSHost) as e:
+        record_checker.RecordChecker(dns_ip)
+
+    expected_msg = 'RecordChecker got invalid DNS server ip: 8.855.0.5'
+    assert e.match(expected_msg)
