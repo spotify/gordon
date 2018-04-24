@@ -19,7 +19,6 @@ import logging
 import time
 
 import async_dns
-
 from async_dns.resolver import ProxyResolver
 
 from gordon import exceptions

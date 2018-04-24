@@ -17,7 +17,7 @@
 import pytest
 from async_dns import Record
 
-from gordon import record_checker, exceptions
+from gordon import exceptions, record_checker
 
 
 #####
