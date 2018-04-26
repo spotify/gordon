@@ -91,7 +91,8 @@ class RecordChecker(object):
                 f'Sending metric record-checker-failed: {record}')
         else:
             final_time = float(time.time() - start_time)
-            logging.info(final_time)
+            success_msg = f'This record: {record} took {final_time} to register'
+            logging.info(success_msg)
 
     async def _check_resolver_ans(
             self, dns_answer_list, record_name,
@@ -120,8 +121,8 @@ class RecordChecker(object):
         # check each record data is equal to the given data
         for rec in type_filtered_list:
             conditions = [rec.name == record_name,
-                          rec.data in record_ip_list,
-                          rec.ttl == record_ttl]
+                          rec.ttl == record_ttl,
+                          rec.data in record_ip_list]
 
             # if ans record data is not equal
             # to the given data return False

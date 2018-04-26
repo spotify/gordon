@@ -97,9 +97,13 @@ async def test_check_time_on_success(
 
     await record_checker_instance.check_record(record_to_check)
 
-    time_it_took_to_check_record = float(caplog.records[0].msg)
+    success_msg = caplog.records[0].msg
+
+    time_it_took_to_check_record = \
+        float(success_msg.split('took ')[1].split(' to')[0])
 
     max_time_to_sleep_when_success = 6
+
     assert 0 < time_it_took_to_check_record < max_time_to_sleep_when_success
 
 
@@ -125,10 +129,10 @@ async def test_check_record_failure_ttl_not_equal(
     mocker.patch('asyncio.sleep', _coroutine)
 
     await record_checker_instance.check_record(record_to_check)
-    failed_msg = caplog.records[0].msg
+    actual_msg = caplog.records[0].msg
 
     expected_msg = f'Sending metric record-checker-failed: {record_to_check}'
-    assert failed_msg == expected_msg
+    assert expected_msg == actual_msg
 
 
 @pytest.mark.asyncio
@@ -154,10 +158,10 @@ async def test_length_of_rrdata_is_not_equal(
     mocker.patch('asyncio.sleep', _coroutine)
 
     await record_checker_instance.check_record(record_to_check)
-    failed_msg = caplog.records[0].msg
+    actual_msg = caplog.records[0].msg
 
     expected_msg = f'Sending metric record-checker-failed: {record_to_check}'
-    assert expected_msg == failed_msg
+    assert expected_msg == actual_msg
 
 
 @pytest.mark.asyncio
