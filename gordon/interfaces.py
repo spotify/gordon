@@ -56,12 +56,12 @@ class IGenericPlugin(Interface):
         """Initialize an EventClient object.
 
         Args:
-            config (dict): plugin-specific configuration
-            success_channel (asyncio.Queue): a sink for successfully processed
+            config (dict): Plugin-specific configuration.
+            success_channel (asyncio.Queue): A sink for successfully processed
                 IEventMessages.
-            error_channel (asyncio.Queue): a sink for IEventMessages that were
+            error_channel (asyncio.Queue): A sink for IEventMessages that were
                 not processed due to problems.
-            loop (obj): object implementing asyncio.AbstractEventLoop.
+            loop (obj): Object implementing asyncio.AbstractEventLoop.
             metrics (obj): Optional obj used to emit metrics.
         """
 
@@ -69,14 +69,14 @@ class IGenericPlugin(Interface):
         """Update the phase of a message to current phase.
 
         Args:
-            event_msg (IEventMessage): message with stale phase.
+            event_msg (IEventMessage): Message with stale phase.
         """
 
 
 class IEventConsumerClient(IGenericPlugin):
     """Client for ingesting push/pull events for Gordon to process.
 
-    The client also  receives both successful and failed
+    The client also receives both successful and failed
     :py:class:`gordon.interfaces.IEventMessage` objects from Gordon in order
     to perform cleanup if needed.
     """
@@ -88,7 +88,7 @@ class IEventConsumerClient(IGenericPlugin):
         """Perform cleanup tasks related to a message.
 
         Args:
-            event_msg (IEventMessage): message at the end of its life cycle.
+            event_msg (IEventMessage): Message at the end of its life cycle.
         """
 
 
@@ -103,7 +103,7 @@ class IEnricherClient(IGenericPlugin):
         """Process message.
 
         Args:
-            event_msg (IEventMessage): message to process.
+            event_msg (IEventMessage): Message to process.
         """
 
 
@@ -114,5 +114,5 @@ class IPublisherClient(IGenericPlugin):
         """Publish processed event to its destination.
 
         Args:
-            event_msg (IEventMessage): message ready to be sent to destination.
+            event_msg (IEventMessage): Message ready to be sent to destination.
         """
