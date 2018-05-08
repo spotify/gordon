@@ -66,10 +66,10 @@ def setup(config_root=''):
     ``gordon.toml``.
 
     Args:
-        config_root (str): where configuration should load from,
+        config_root (str): Where configuration should load from,
             defaults to current working directory.
     Returns:
-        A dict for Gordon service configuration
+        A dict for Gordon service configuration.
     """
     config = _load_config(root=config_root)
 
@@ -102,7 +102,7 @@ def _log_or_exit_on_exceptions(errors, debug):
               type=click.Path(exists=True), required=False, default='.',
               help='Directory where to find service configuration.')
 def run(config_root):
-    config = setup(os.path.abspath(config_root))  # NOQA
+    config = setup(os.path.abspath(config_root))
     debug_mode = config.get('core', {}).get('debug', False)
 
     plugin_names, plugins, errors = plugins_loader.load_plugins(config)
@@ -110,9 +110,11 @@ def run(config_root):
         _log_or_exit_on_exceptions(errors, debug_mode)
 
     if plugin_names:
-        logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}')
+        logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
 
     logging.info(f'Starting gordon v{version}...')
+
+    # TODO: actually start the plugins?
 
 
 if __name__ == '__main__':
