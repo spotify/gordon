@@ -131,7 +131,7 @@ async def test_check_record_failure_ttl_not_equal(
     await record_checker_instance.check_record(record_to_check)
     actual_msg = caplog.records[0].msg
 
-    expected_msg = f'Sending metric record-checker-failed: {record_to_check}'
+    expected_msg = f'Sending metric record-checker-failed: {record_to_check}.'
     assert expected_msg == actual_msg
 
 
@@ -160,7 +160,7 @@ async def test_length_of_rrdata_is_not_equal(
     await record_checker_instance.check_record(record_to_check)
     actual_msg = caplog.records[0].msg
 
-    expected_msg = f'Sending metric record-checker-failed: {record_to_check}'
+    expected_msg = f'Sending metric record-checker-failed: {record_to_check}.'
     assert expected_msg == actual_msg
 
 
