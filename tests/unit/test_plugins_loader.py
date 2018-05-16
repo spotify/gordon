@@ -58,6 +58,10 @@ def exp_inited_plugins(plugin_config):
 
 @pytest.fixture
 def mock_iter_entry_points(mocker, monkeypatch, plugins):
+    # Extra plugin without configuration - should be skipped as inactive.
+    inactive_plugin = mocker.MagicMock(pkg_resources.EntryPoint)
+    inactive_plugin.name = 'inactive.plugin'
+    plugins['inactive.plugin'] = inactive_plugin
     mock_plugins = plugins.values()
 
     mock_iter_entry_points = mocker.MagicMock(pkg_resources.iter_entry_points)
