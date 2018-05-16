@@ -35,11 +35,20 @@ class IEventMessage(Interface):
             phase (str): Current phase.
         """
 
-    def append_to_history(entry):
+    def append_to_history(entry, plugin_phase):
         """Append entry to the IEventMessage's history_log.
 
         Args:
             entry (str): Information to append to log.
+            plugin_phase (str): Phase of plugin that created the log
+                entry message.
+        """
+
+    def update_phase(new_phase):
+        """Update the phase of a message to new phase.
+
+        Args:
+            new_phase (str): Phase to update the message to.
         """
 
 
@@ -52,7 +61,7 @@ class IGenericPlugin(Interface):
     """
     phase = Attribute('Plugin phase')
 
-    def __init__(config, success_channel, error_channel, loop, metrics=None):
+    def __init__(config, success_channel, error_channel, metrics=None):
         """Initialize an EventClient object.
 
         Args:
@@ -61,16 +70,11 @@ class IGenericPlugin(Interface):
                 IEventMessages.
             error_channel (asyncio.Queue): A sink for IEventMessages that were
                 not processed due to problems.
-            loop (obj): Object implementing asyncio.AbstractEventLoop.
             metrics (obj): Optional obj used to emit metrics.
         """
 
-    async def update_phase(event_msg):
-        """Update the phase of a message to current phase.
-
-        Args:
-            event_msg (IEventMessage): Message with stale phase.
-        """
+    async def shutdown():
+        """Gracefully shutdown plugin."""
 
 
 class IEventConsumerClient(IGenericPlugin):
@@ -81,7 +85,7 @@ class IEventConsumerClient(IGenericPlugin):
     to perform cleanup if needed.
     """
 
-    async def start():
+    async def run():
         """Begin consuming messages using the provided event loop."""
 
     async def cleanup(event_msg):
