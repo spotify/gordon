@@ -1,6 +1,6 @@
 include *.txt LICENSE tox.ini .coveragerc *.rst *.toml.example OWNERS
 recursive-include gordon *.py
-recursive-include tests *.py
+recursive-include tests *.py *.toml
 
 # Exclude service-specific config
 exclude gordon*.toml

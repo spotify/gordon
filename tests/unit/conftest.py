@@ -19,6 +19,7 @@ Module for reusable pytest fixtures.
 
 import asyncio
 import logging
+import os
 
 import pkg_resources
 import pytest
@@ -99,22 +100,10 @@ def plugin_exc_mock():
 
 @pytest.fixture(scope='session')
 def config_file():
-    return ('[core]\n'
-            'plugins = ["xyz.event_consumer", "xyz.enricher",'
-            ' "xyz.publisher"]\n'
-            'debug = true\n'
-            '[core.logging]\n'
-            'level = "debug"\n'
-            'handlers = ["stream"]\n'
-            '[xyz]\n'
-            'a_key = "a_value"\n'
-            'b_key = "b_value"\n'
-            '[xyz.event_consumer]\n'
-            'a_key = "another_value"\n'
-            '[xyz.enricher]\n'
-            'd_key = "d_value"\n'
-            '[xyz.publisher]\n'
-            'c_key = "c_value"')
+    here = os.path.dirname(os.path.realpath(__file__))
+    filepath = os.path.join(here, 'fixtures/test-gordon.toml')
+    with open(filepath, 'r') as f:
+        return f.read()
 
 
 @pytest.fixture
