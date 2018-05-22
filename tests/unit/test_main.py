@@ -177,7 +177,7 @@ def test_gather_runnable_plugins(patches, exp_plugins, exp_mock_call,
 
 
 @pytest.mark.asyncio
-async def test_run_plugins(inited_plugins, mocker, monkeypatch):
+async def test_run_plugins(inited_plugins):
     """Run all installed plugins."""
     await main._run(inited_plugins.values(), debug=True)
 
@@ -236,7 +236,7 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
 
 def test_run_cli_raise_exceptions(loaded_config, installed_plugins, caplog,
                                   setup_mock, mock_plugins_loader,
-                                  plugin_exc_mock, monkeypatch, mocker):
+                                  plugin_exc_mock):
     """Raise plugin exceptions when not in debug mode via CLI."""
     loaded_config['core']['debug'] = False
     setup_mock.return_value = loaded_config

@@ -245,8 +245,7 @@ def test_load_plugins(mock_iter_entry_points, loaded_config, installed_plugins,
         assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
 
 
-def test_load_plugins_none_loaded(mocker, installed_plugins, plugin_kwargs,
-                                  exp_inited_plugins):
+def test_load_plugins_none_loaded(mocker, installed_plugins, plugin_kwargs):
     """Return empty list when no plugins are found."""
     mock_iter_entry_points = mocker.MagicMock(pkg_resources.iter_entry_points)
     mock_iter_entry_points.return_value = []
@@ -258,10 +257,9 @@ def test_load_plugins_none_loaded(mocker, installed_plugins, plugin_kwargs,
     assert [] == installed_plugins == inited_names == errors
 
 
-def test_load_plugins_exceptions(installed_plugins, exp_inited_plugins,
-                                 loaded_config, mock_iter_entry_points,
-                                 plugin_exc_mock, plugin_kwargs, mocker,
-                                 monkeypatch):
+def test_load_plugins_exceptions(installed_plugins, loaded_config,
+                                 mock_iter_entry_points, plugin_exc_mock,
+                                 plugin_kwargs, mocker, monkeypatch):
     """Loading plugin exceptions are returned."""
     inited_plugins_mock = mocker.MagicMock(
         plugins_loader._init_plugins, autospec=True)
