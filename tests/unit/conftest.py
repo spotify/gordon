@@ -28,6 +28,13 @@ import zope.interface
 from gordon import interfaces
 
 
+PLUGIN_NAMES = ['event_consumer', 'enricher', 'publisher', 'runnable']
+# what plugins are registered as within `setup.py:setup.entry_points`
+REGISTERED_PLUGINS = ['xyz.' + p for p in PLUGIN_NAMES]
+ACTIVE_NAMES = PLUGIN_NAMES[:3]
+REGISTERED_ACTIVE_PLUGINS = REGISTERED_PLUGINS[:3]
+
+
 @zope.interface.implementer(interfaces.IEventConsumerClient)
 class EventConsumerStub:
     def __init__(self, config, success_chnl, error_chnl, **kwargs):
@@ -160,12 +167,10 @@ def installed_plugins(mocker):
         plugin_mock.load.return_value = _get_stub_class(name)
         return plugin_mock
 
-    return {
-        'xyz.event_consumer': mock_plugin('xyz.event_consumer'),
-        'xyz.enricher': mock_plugin('xyz.enricher'),
-        'xyz.publisher': mock_plugin('xyz.publisher'),
-        'xyz.runnable': mock_plugin('xyz.runnable'),
-    }
+    installed = {}
+    for plugin_name in REGISTERED_PLUGINS:
+        installed[plugin_name] = mock_plugin(plugin_name)
+    return installed
 
 
 @pytest.fixture
@@ -186,11 +191,8 @@ def plugin_kwargs():
 
 @pytest.fixture
 def inited_plugins(plugin_kwargs):
-    plugin_names = [
-        'event_consumer', 'enricher', 'publisher', 'runnable'
-    ]
     plugins = {}
-    for name in plugin_names:
+    for name in PLUGIN_NAMES:
         conf = _get_plugin_conf(name)
         plugins[name] = _get_stub_class(name)(conf, **plugin_kwargs)
 

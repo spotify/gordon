@@ -97,13 +97,12 @@ def is_instance_of_stub(obj):
 def test_init_plugins(installed_plugins, plugin_config, inited_plugins,
                       plugin_kwargs):
     """Plugins are initialized with their config."""
-    active_plugins = [
-        'xyz.event_consumer', 'xyz.enricher'
-    ]
     inited_names, inited_plugins, errors = plugins_loader._init_plugins(
-        active_plugins, installed_plugins, plugin_config, plugin_kwargs)
+        conftest.REGISTERED_ACTIVE_PLUGINS, installed_plugins, plugin_config,
+        plugin_kwargs
+    )
 
-    assert sorted(active_plugins) == sorted(inited_names)
+    assert sorted(conftest.REGISTERED_ACTIVE_PLUGINS) == sorted(inited_names)
     for plugin_obj in inited_plugins:
         assert is_instance_of_stub(plugin_obj)
         assert any([p.config == plugin_obj.config for p in inited_plugins])
@@ -127,43 +126,40 @@ def test_init_plugins_exceptions(mocker, plugin_kwargs):
 def test_init_plugins_skipped(installed_plugins, plugin_config, caplog,
                               plugin_kwargs):
     """Skips plugins that are not configured."""
-    active_plugins = ['xyz.event_consumer', 'xyz.enricher']
     config = {'xyz.event_consumer': plugin_config['xyz.event_consumer']}
 
     inited_names, inited_plugins, errors = plugins_loader._init_plugins(
-        active_plugins, installed_plugins, config, plugin_kwargs)
+        conftest.REGISTERED_ACTIVE_PLUGINS, installed_plugins, config,
+        plugin_kwargs
+    )
 
     assert 1 == len(inited_plugins) == len(inited_names)
-    assert 1 == len(caplog.records)
+    assert 2 == len(caplog.records)
 
 
 def test_init_plugins_empty_config(installed_plugins, plugin_kwargs):
     """Loads plugin if mathcing config key exists with empty config."""
-    active_plugins = ['xyz.event_consumer', 'xyz.enricher']
-    config = {
-        'xyz.event_consumer': {},
-        'xyz.enricher': {}
-    }
+    config = {name: {} for name in conftest.REGISTERED_ACTIVE_PLUGINS}
 
     inited_names, inited_plugins, errors = plugins_loader._init_plugins(
-        active_plugins, installed_plugins, config, plugin_kwargs)
+        conftest.REGISTERED_ACTIVE_PLUGINS, installed_plugins, config,
+        plugin_kwargs
+    )
 
-    assert 2 == len(inited_plugins) == len(inited_names)
+    assert 3 == len(inited_plugins) == len(inited_names)
     for plugin_obj in inited_plugins:
-        # assert isinstance(plugin_obj, FakePlugin)
         assert {} == plugin_obj.config
 
 
 def test_init_plugins_skip_inactive(installed_plugins, plugin_config,
                                     plugin_kwargs):
     """Skips plugins that are not activated in core config."""
-    active_plugins = ['xyz.event_consumer']
-
     inited_names, inited_plugins, errors = plugins_loader._init_plugins(
-        active_plugins, installed_plugins, plugin_config, plugin_kwargs)
+        [conftest.REGISTERED_ACTIVE_PLUGINS[0]], installed_plugins,
+        plugin_config, plugin_kwargs)
 
     assert 1 == len(inited_plugins) == len(inited_names)
-    exp = plugin_config.get('xyz.event_consumer')
+    exp = plugin_config.get(conftest.REGISTERED_ACTIVE_PLUGINS[0])
     assert exp == inited_plugins[0].config
 
 
@@ -198,24 +194,18 @@ def test_get_namespaced_config(namespace, exp_config, installed_plugins,
 
 def test_load_plugin_configs(installed_plugins, loaded_config, plugin_config):
     """Load plugin-specific config ignoring other plugins' configs."""
-    plugin_names = [
-        'xyz', 'xyz.event_consumer', 'xyz.enricher', 'xyz.publisher',
-    ]
+    plugin_names = ['xyz'] + conftest.REGISTERED_ACTIVE_PLUGINS
     parsed_config = plugins_loader._load_plugin_configs(
         plugin_names, loaded_config)
 
-    names = ['xyz.event_consumer', 'xyz.enricher']
-    for name in names:
+    for name in conftest.REGISTERED_ACTIVE_PLUGINS:
         assert plugin_config[name] == parsed_config[name]
 
 
 def test_get_plugin_config_keys(installed_plugins):
     """Entry point keys for plugins are parsed to config keys."""
     config_keys = plugins_loader._get_plugin_config_keys(installed_plugins)
-    expected = [
-        'xyz', 'xyz.event_consumer', 'xyz.enricher', 'xyz.publisher',
-        'xyz.runnable',
-    ]
+    expected = ['xyz'] + conftest.REGISTERED_PLUGINS
     assert sorted(expected) == sorted(config_keys)
 
 
@@ -224,18 +214,17 @@ def test_get_activated_plugins(loaded_config, installed_plugins):
     active = plugins_loader._get_activated_plugins(
         loaded_config, installed_plugins)
 
-    exp = ['xyz.event_consumer', 'xyz.enricher', 'xyz.publisher']
-    assert exp == active
+    assert conftest.REGISTERED_ACTIVE_PLUGINS == active
 
 
 def test_get_activated_plugins_raises(loaded_config, installed_plugins):
     """Raise when activated plugins are not installed."""
-    loaded_config['core']['plugins'].append('three.plugin')
+    loaded_config['core']['plugins'].append('xyz.not_installed_plugin')
 
     with pytest.raises(exceptions.LoadPluginError) as e:
         plugins_loader._get_activated_plugins(loaded_config, installed_plugins)
 
-    e.match('Plugin "three.plugin" not installed')
+    e.match('Plugin "xyz.not_installed_plugin" not installed')
 
 
 def test_gather_installed_plugins(mock_iter_entry_points, installed_plugins):
@@ -274,12 +263,12 @@ def test_load_plugins_exceptions(installed_plugins, exp_inited_plugins,
                                  plugin_exc_mock, plugin_kwargs, mocker,
                                  monkeypatch):
     """Loading plugin exceptions are returned."""
-    names = ['event_consumer.plugin', 'enricher.plugin']
     inited_plugins_mock = mocker.MagicMock(
         plugins_loader._init_plugins, autospec=True)
 
     exc = [('bad.plugin', plugin_exc_mock)]
-    inited_plugins_mock.return_value = names, inited_plugins_mock, exc
+    inited_plugins_mock.return_value = (
+        conftest.REGISTERED_PLUGINS, inited_plugins_mock, exc)
     monkeypatch.setattr(plugins_loader, '_init_plugins', inited_plugins_mock)
 
     inited_names, installed_plugins, errors = plugins_loader.load_plugins(
