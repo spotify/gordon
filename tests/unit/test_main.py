@@ -14,10 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
+
 import pytest
 from click.testing import CliRunner
 
 from gordon import main
+from tests.unit import conftest
 
 
 #####
@@ -70,11 +73,12 @@ def setup_mock(mocker, monkeypatch):
 
 
 @pytest.fixture
-def load_plugins_mock(mocker, monkeypatch):
-    load_plugins_mock = mocker.MagicMock(
+def mock_plugins_loader(mocker, monkeypatch):
+    mock_plugins_loader = mocker.MagicMock(
         main.plugins_loader.load_plugins, autospec=True)
-    monkeypatch.setattr(main.plugins_loader, 'load_plugins', load_plugins_mock)
-    return load_plugins_mock
+    monkeypatch.setattr(
+        main.plugins_loader, 'load_plugins', mock_plugins_loader)
+    return mock_plugins_loader
 
 
 def test_log_or_exit_on_exceptions_no_debug(plugin_exc_mock, mocker,
@@ -85,7 +89,7 @@ def test_log_or_exit_on_exceptions_no_debug(plugin_exc_mock, mocker,
 
     errors = [('bad.plugin', plugin_exc_mock)]
     with pytest.raises(SystemExit) as e:
-        main._log_or_exit_on_exceptions(errors, debug=False)
+        main._log_or_exit_on_exceptions('base msg', errors, debug=False)
 
     e.match('1')
     logging_mock.error.assert_called_once()
@@ -99,46 +103,147 @@ def test_log_or_exit_on_exceptions_debug(plugin_exc_mock, mocker, monkeypatch):
 
     errors = [('bad.plugin', plugin_exc_mock)]
 
-    main._log_or_exit_on_exceptions(errors, debug=True)
+    main._log_or_exit_on_exceptions('base msg', errors, debug=True)
 
     logging_mock.warn.assert_called_once()
     logging_mock.error.assert_not_called()
 
 
-run_args = 'has_active_plugins,exp_log_count'
-run_params = [
-    (True, 2),
-    (False, 1),
-]
+@pytest.fixture
+def mock_log_or_exit_on_exc(mocker, monkeypatch):
+    mock = mocker.Mock()
+    monkeypatch.setattr('gordon.main._log_or_exit_on_exceptions', mock)
+    return mock
 
 
-@pytest.mark.parametrize(run_args, run_params)
-def test_run(has_active_plugins, exp_log_count, plugins, setup_mock,
-             load_plugins_mock, mocker, monkeypatch, caplog):
-    """Successfully start the Gordon service."""
-    names, errors = [], []
+@pytest.mark.parametrize('plugins,exp_log_calls', (
+    (('event_consumer', 'enricher', 'publisher', 'runnable'), 0),
+    (('event_consumer', 'enricher', 'publisher'), 0),
+    (('event_consumer', 'enricher'), 1),
+    (('event_consumer',), 1),
+    (('runnable',), 1),
+
+))
+def test_assert_required_plugins(plugins, exp_log_calls, inited_plugins,
+                                 mock_log_or_exit_on_exc):
+    """Assert required plugins are installed, else warn/error out."""
+    plugins = [inited_plugins[p] for p in plugins]
+    main._assert_required_plugins(plugins, debug=True)
+
+    assert exp_log_calls == mock_log_or_exit_on_exc.call_count
+
+
+@pytest.mark.parametrize('patches,exp_plugins,exp_mock_call', (
+    # provider: async run; gen plugin: async run
+    ([], 2, 0),
+    # provider: sync run; gen plugin: async run
+    ([('EventConsumerStub.run', 'set')], 1, 1),
+    # provider: no run; gen plugin: async run
+    ([('EventConsumerStub.run', 'del')], 1, 1),
+    # provider: sync run; gen plugin: sync run
+    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'set')], 0, 1),
+    # provider: no run; gen plugin: sync run
+    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'set')], 0, 1),
+    # provider: sync run; gen plugin: no run
+    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'del')], 0, 1),
+    # provider: no run; gen plugin: no run
+    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'del')], 0, 1),
+    # provider: async run; gen plugin: sync run
+    ([('GenericStub.run', 'set')], 1, 0),
+    # provider: async run; gen plugin: no run
+    ([('GenericStub.run', 'del')], 1, 0),
+))
+def test_gather_runnable_plugins(patches, exp_plugins, exp_mock_call,
+                                 monkeypatch, inited_plugins,
+                                 mock_log_or_exit_on_exc):
+
+    def _set_or_delete(patch, action):
+        if action == 'del':
+            monkeypatch.delattr(patch, raising=False)
+        else:
+            monkeypatch.setattr(patch, lambda: None)
+
+    if patches:
+        base_patch = 'tests.unit.conftest.'
+        for patch, action in patches:
+            patch = base_patch + patch
+            _set_or_delete(patch, action)
+
+    runnable_plugins = main._gather_runnable_plugins(
+        inited_plugins.values(), debug=True)
+
+    assert exp_plugins == len(runnable_plugins)
+    assert exp_mock_call == mock_log_or_exit_on_exc.call_count
+
+
+@pytest.mark.asyncio
+async def test_run_plugins(inited_plugins, mocker, monkeypatch):
+    """Run all installed plugins."""
+    await main._run(inited_plugins.values(), debug=True)
+
+    assert 1 == inited_plugins['event_consumer']._mock_run_count
+    assert 1 == inited_plugins['runnable']._mock_run_count
+
+
+@pytest.fixture
+def event_loop_mock(mocker, monkeypatch):
+    mock = mocker.Mock()
+    monkeypatch.setattr('gordon.main.asyncio.get_event_loop', mock)
+    return mock.return_value
+
+
+@pytest.mark.parametrize('has_active_plugins,exp_log_count,errors', (
+    (True, 2, []),
+    (True, 2, [('not_a.plugin', conftest.plugin_exc_mock())]),
+    (False, 1, []),
+))
+def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
+                 setup_mock, mock_plugins_loader, mocker, monkeypatch, caplog,
+                 loaded_config, event_loop_mock):
+    """Successfully run gordon service in debug mode via CLI."""
+    loaded_config['core']['debug'] = True
+    names, _plugins = [], []
+
     if has_active_plugins:
-        names = ['one.plugin', 'two.plugin']
-    load_plugins_mock.return_value = names, plugins, errors
+        names = [
+            'event_consumer.plugin', 'enricher.plugin', 'publisher.plugin']
+        success, error = asyncio.Queue(), asyncio.Queue()
+        _plugins = [
+            conftest.EventConsumerStub({}, success, error),
+            conftest.EnricherStub({}, success, error),
+            conftest.PublisherStub({}, success, error)
+        ]
+    mock_plugins_loader.return_value = names, _plugins, errors
+    _run_mock = mocker.Mock()
+    monkeypatch.setattr('gordon.main._run', _run_mock)
+    _log_or_exit_mock = mocker.Mock()
+    monkeypatch.setattr('gordon.main._log_or_exit_on_exceptions',
+                        _log_or_exit_mock)
 
     runner = CliRunner()
     result = runner.invoke(main.run)
 
     assert 0 == result.exit_code
     setup_mock.assert_called_once()
+    event_loop_mock.create_task.assert_called_once_with(
+        _run_mock(_plugins, True))
+    event_loop_mock.run_forever.assert_called_once_with()
+    event_loop_mock.stop.assert_called_once()
     assert exp_log_count == len(caplog.records)
+    if errors:
+        _log_or_exit_mock.assert_called_once()
 
 
-def test_run_raise_exceptions(loaded_config, plugins, caplog, setup_mock,
-                              load_plugins_mock, plugin_exc_mock,
-                              monkeypatch, mocker):
-    """Raise plugin exceptions when not in debug mode."""
+def test_run_cli_raise_exceptions(loaded_config, installed_plugins, caplog,
+                                  setup_mock, mock_plugins_loader,
+                                  plugin_exc_mock, monkeypatch, mocker):
+    """Raise plugin exceptions when not in debug mode via CLI."""
     loaded_config['core']['debug'] = False
     setup_mock.return_value = loaded_config
 
-    names = ['one.plugin', 'two.plugin']
-    errors = [('three.plugin', plugin_exc_mock)]
-    load_plugins_mock.return_value = names, plugins, errors
+    names = ['event_consumer', 'enricher']
+    errors = [('not_a_plugin', plugin_exc_mock)]
+    mock_plugins_loader.return_value = names, installed_plugins, errors
 
     runner = CliRunner()
     result = runner.invoke(main.run)
