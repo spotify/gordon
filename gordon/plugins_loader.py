@@ -195,9 +195,10 @@ def load_plugins(config, plugin_kwargs):
         plugin_kwargs (dict): keyword arguments to give to plugins
             during instantiation.
     Returns:
-        Tuple of 2 lists: list of names of plugins, then list of
-        instantiated plugin objects. A tuple of two empty lists is
-        return if there are no plugins found or activated in gordon
+        Tuple of 3 lists: list of names of plugins, list of
+        instantiated plugin objects, and any errors encountered while
+        loading/instantiating plugins. A tuple of three empty lists is
+        returned if there are no plugins found or activated in gordon
         config.
     """
     installed_plugins = _gather_installed_plugins()
