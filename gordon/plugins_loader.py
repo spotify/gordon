@@ -64,13 +64,13 @@ from gordon import exceptions
 PLUGIN_NAMESPACE = 'gordon.plugins'
 
 
-def _init_plugins(active_plugins, installed_plugins, plugin_configs):
+def _init_plugins(active, installed, configs, kwargs):
     inited_plugins, inited_plugin_names, errors = [], [], []
-    for plugin_name, unloaded_plugin in installed_plugins.items():
-        if plugin_name not in active_plugins:
+    for plugin_name, unloaded_plugin in installed.items():
+        if plugin_name not in active:
             continue
         plugin_class = unloaded_plugin.load()
-        plugin_config = plugin_configs.get(plugin_name)
+        plugin_config = configs.get(plugin_name)
 
         # check against `None` because `plugin_config` could be `{}`,
         # which should be handled by the plugin's logic (i.e. accept all
@@ -82,7 +82,7 @@ def _init_plugins(active_plugins, installed_plugins, plugin_configs):
             continue
 
         try:
-            plugin_object = plugin_class(plugin_config)
+            plugin_object = plugin_class(plugin_config, **kwargs)
             inited_plugins.append(plugin_object)
             inited_plugin_names.append(plugin_name)
         except Exception as e:
@@ -186,16 +186,19 @@ def _gather_installed_plugins():
     return gathered_plugins
 
 
-def load_plugins(config):
+def load_plugins(config, plugin_kwargs):
     """
     Discover and instantiate plugins.
 
     Args:
         config (dict): loaded configuration for the Gordon service.
+        plugin_kwargs (dict): keyword arguments to give to plugins
+            during instantiation.
     Returns:
-        Tuple of 2 lists: list of names of plugins, then list of
-        instantiated plugin objects. A tuple of two empty lists is
-        return if there are no plugins found or activated in gordon
+        Tuple of 3 lists: list of names of plugins, list of
+        instantiated plugin objects, and any errors encountered while
+        loading/instantiating plugins. A tuple of three empty lists is
+        returned if there are no plugins found or activated in gordon
         config.
     """
     installed_plugins = _gather_installed_plugins()
@@ -204,4 +207,5 @@ def load_plugins(config):
         return [], [], []
     plugin_namespaces = _get_plugin_config_keys(active_plugins)
     plugin_configs = _load_plugin_configs(plugin_namespaces, config)
-    return _init_plugins(active_plugins, installed_plugins, plugin_configs)
+    return _init_plugins(
+        active_plugins, installed_plugins, plugin_configs, plugin_kwargs)

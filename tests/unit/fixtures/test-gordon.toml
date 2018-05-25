@@ -1,0 +1,23 @@
+# NOTICE - Test Fixture for Gordon Core
+# Gordon Core Config
+[core]
+plugins = ["xyz.event_consumer", "xyz.enricher", "xyz.publisher"]
+debug = true
+
+[core.logging]
+level = "debug"
+handlers = ["stream"]
+
+# Plugin Config
+[xyz]
+a_key = "a_value"
+b_key = "b_value"
+
+[xyz.event_consumer]
+a_key = "another_value"
+
+[xyz.enricher]
+d_key = "d_value"
+
+[xyz.publisher]
+c_key = "c_value"

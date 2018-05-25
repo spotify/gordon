@@ -17,13 +17,84 @@
 Module for reusable pytest fixtures.
 """
 
+import asyncio
+import logging
+import os
+
 import pkg_resources
 import pytest
+import zope.interface
+
+from gordon import interfaces
 
 
-class FakePlugin:
-    def __init__(self, config):
+PLUGIN_NAMES = ['event_consumer', 'enricher', 'publisher', 'runnable']
+# what plugins are registered as within `setup.py:setup.entry_points`
+REGISTERED_PLUGINS = ['xyz.' + p for p in PLUGIN_NAMES]
+ACTIVE_NAMES = PLUGIN_NAMES[:3]
+REGISTERED_ACTIVE_PLUGINS = REGISTERED_PLUGINS[:3]
+
+
+@zope.interface.implementer(interfaces.IEventConsumerClient)
+class EventConsumerStub:
+    def __init__(self, config, success_chnl, error_chnl, **kwargs):
         self.config = config
+        self.success_chnl = success_chnl
+        self.error_chnl = error_chnl
+        self._mock_run_count = 0
+
+    async def run(self):
+        await asyncio.sleep(0)
+        self._mock_run_count += 1
+
+    async def cleanup(self):
+        pass
+
+    async def shutdown(self):
+        pass
+
+
+@zope.interface.implementer(interfaces.IEnricherClient)
+class EnricherStub:
+    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+        self.config = config
+        self.success_chnl = success_chnl
+        self.error_chnl = error_chnl
+
+    async def process(self):
+        pass
+
+    async def shutdown(self):
+        pass
+
+
+@zope.interface.implementer(interfaces.IPublisherClient)
+class PublisherStub:
+    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+        self.config = config
+        self.success_chnl = success_chnl
+        self.error_chnl = error_chnl
+
+    async def publish_changes(self):
+        pass
+
+    async def shutdown(self):
+        pass
+
+
+class GenericStub:
+    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+        self.config = config
+        self.success_chnl = success_chnl
+        self.error_chnl = error_chnl
+        self._mock_run_count = 0
+
+    async def run(self):
+        await asyncio.sleep(0)
+        self._mock_run_count += 1
+
+    async def shutdown(self):
+        pass
 
 
 @pytest.fixture
@@ -36,54 +107,93 @@ def plugin_exc_mock():
 
 @pytest.fixture(scope='session')
 def config_file():
-    return ('[core]\n'
-            'plugins = ["one.plugin", "two.plugin"]\n'
-            'debug = true\n'
-            '[core.logging]\n'
-            'level = "debug"\n'
-            'handlers = ["stream"]\n'
-            '[one]\n'
-            'a_key = "a_value"\n'
-            'b_key = "b_value"\n'
-            '[one.plugin]\n'
-            'a_key = "another_value"\n'
-            '[two.plugin]\n'
-            'd_key = "d_value"')
+    here = os.path.dirname(os.path.realpath(__file__))
+    filepath = os.path.join(here, 'fixtures/test-gordon.toml')
+    with open(filepath, 'r') as f:
+        return f.read()
 
 
 @pytest.fixture
 def loaded_config():
     return {
         'core': {
-            'plugins': ['one.plugin', 'two.plugin'],
+            'plugins': [
+                'xyz.event_consumer', 'xyz.enricher', 'xyz.publisher'],
             'debug': True,
             'logging': {
                 'level': 'debug',
                 'handlers': ['stream'],
             }
         },
-        'one': {
+        'xyz': {
             'a_key': 'a_value',
             'b_key': 'b_value',
-            'plugin': {
+            'event_consumer': {
                 'a_key': 'another_value',
             },
-        },
-        'two': {
-            'plugin': {
+            'enricher': {
                 'd_key': 'd_value',
             },
-        },
+            'publisher': {
+                'c_key': 'c_value',
+            },
+        }
+    }
+
+
+def _get_stub_class(plugin_name):
+    plugin_name = plugin_name.split('.')[-1]
+    return {
+        'event_consumer': EventConsumerStub,
+        'enricher': EnricherStub,
+        'publisher': PublisherStub,
+        'runnable': GenericStub
+    }[plugin_name]
+
+
+def _get_plugin_conf(plugin_name):
+    conf = loaded_config()
+    try:
+        return conf[plugin_name]
+    except KeyError:
+        return {}
+
+
+@pytest.fixture
+def installed_plugins(mocker):
+    def mock_plugin(name):
+        plugin_mock = mocker.MagicMock(pkg_resources.EntryPoint)
+        plugin_mock.name = name
+        plugin_mock.load.return_value = _get_stub_class(name)
+        return plugin_mock
+
+    installed = {}
+    for plugin_name in REGISTERED_PLUGINS:
+        installed[plugin_name] = mock_plugin(plugin_name)
+    return installed
+
+
+@pytest.fixture
+def caplog(caplog):
+    """Set global test logging levels."""
+    caplog.set_level(logging.DEBUG)
+    logging.getLogger('asyncio').setLevel(logging.WARNING)
+    return caplog
+
+
+@pytest.fixture(scope='session')
+def plugin_kwargs():
+    return {
+        'success_chnl': asyncio.Queue(),
+        'error_chnl': asyncio.Queue(),
     }
 
 
 @pytest.fixture
-def plugins(mocker):
+def inited_plugins(plugin_kwargs):
     plugins = {}
-    names = ['one.plugin', 'two.plugin']
-    for name in names:
-        plugin_mock = mocker.MagicMock(pkg_resources.EntryPoint, autospec=True)
-        plugin_mock.name = name
-        plugin_mock.load.return_value = FakePlugin
-        plugins[name] = plugin_mock
+    for name in PLUGIN_NAMES:
+        conf = _get_plugin_conf(name)
+        plugins[name] = _get_stub_class(name)(conf, **plugin_kwargs)
+
     return plugins

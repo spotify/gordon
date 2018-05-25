@@ -24,3 +24,11 @@ class LoadPluginError(GordonError):
 
 class InvalidDNSHost(GordonError):
     """Error when given invalid DNS server to query."""
+
+
+class MissingPluginError(GordonError):
+    """Missing a required plugin."""
+
+
+class InvalidPluginError(GordonError):
+    """Plugin implementation is invalid."""

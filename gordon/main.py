@@ -32,6 +32,7 @@ Example:
     $ python gordon/main.py --config-root /etc/default/
 """
 
+import asyncio
 import logging
 import os
 
@@ -40,6 +41,8 @@ import toml
 import ulogger
 
 from gordon import __version__ as version
+from gordon import exceptions
+from gordon import interfaces
 from gordon import plugins_loader
 
 
@@ -83,18 +86,72 @@ def setup(config_root=''):
     return config
 
 
-def _log_or_exit_on_exceptions(errors, debug):
+def _log_or_exit_on_exceptions(base_msg, exc, debug):
     log_level_func = logging.warn
     if not debug:
         log_level_func = logging.error
 
-    base_msg = 'Plugin "{name}" was not loaded:'
-    for name, exc in errors:
-        msg = base_msg.format(name=name)
-        log_level_func(msg, exc_info=exc)
+    if isinstance(exc, list):
+        for exception in exc:
+            log_level_func(base_msg, exc_info=exception)
+    else:
+        log_level_func(base_msg, exc_info=exc)
 
     if not debug:
         raise SystemExit(1)
+
+
+def _assert_required_plugins(installed_plugins, debug):
+    # enricher not required
+    required_providers_available = {
+        'event_consumer': False,
+        'publisher': False,
+    }
+    for plugin in installed_plugins:
+        if interfaces.IEventConsumerClient.providedBy(plugin):
+            required_providers_available['event_consumer'] = True
+        elif interfaces.IPublisherClient.providedBy(plugin):
+            required_providers_available['publisher'] = True
+
+    missing = []
+    msg = ('The provider for the "{name}" interface is not configured for the '
+           'Gordon service or is not implemented.')
+    for provider, available in required_providers_available.items():
+        if not available:
+            exc = exceptions.MissingPluginError(msg.format(name=provider))
+            missing.append(exc)
+    if missing:
+        base_msg = 'Problem running plugins: '
+        _log_or_exit_on_exceptions(base_msg, missing, debug=debug)
+
+
+def _gather_runnable_plugins(plugins, debug):
+    plugins_to_run = []
+    for plugin in plugins:
+        if interfaces.IEventConsumerClient.providedBy(plugin):
+            # TODO (lynn): this should be switched out for adding
+            # the "verify interface implementation" ability. See
+            # https://docs.zope.org/zope.interface/verify.html
+            if not hasattr(plugin, 'run') or \
+                    not asyncio.iscoroutinefunction(plugin.run):
+                msg = (f'Implemention "{plugin}" of the required '
+                       '"IEventConsumerClient" interface does not have the '
+                       'necessary `run` method.')
+                exc = exceptions.InvalidPluginError(msg)
+                _log_or_exit_on_exceptions(msg, exc, debug)
+                continue
+            plugins_to_run.append(plugin)
+        elif hasattr(plugin, 'run') and asyncio.iscoroutinefunction(plugin.run):
+            plugins_to_run.append(plugin)
+
+    return plugins_to_run
+
+
+async def _run(plugins, debug):
+    _assert_required_plugins(plugins, debug)
+    plugins_to_run = _gather_runnable_plugins(plugins, debug)
+    tasks = [p.run() for p in plugins_to_run]
+    await asyncio.gather(*tasks)
 
 
 @click.command()
@@ -105,16 +162,28 @@ def run(config_root):
     config = setup(os.path.abspath(config_root))
     debug_mode = config.get('core', {}).get('debug', False)
 
-    plugin_names, plugins, errors = plugins_loader.load_plugins(config)
+    # TODO: initialize a metrics object - either here or within `load_plugins`
+    plugin_kwargs = {
+        'success_channel': asyncio.Queue(),
+        'error_channel': asyncio.Queue(),
+    }
+    plugin_names, plugins, errors = plugins_loader.load_plugins(
+        config, plugin_kwargs)
     if errors:
-        _log_or_exit_on_exceptions(errors, debug_mode)
+        for err_plugin, exc in errors:
+            base_msg = 'Plugin was not loaded: {err_plugin}'
+            _log_or_exit_on_exceptions(base_msg, exc, debug=debug_mode)
 
     if plugin_names:
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
 
     logging.info(f'Starting gordon v{version}...')
-
-    # TODO: actually start the plugins?
+    loop = asyncio.get_event_loop()
+    try:
+        loop.create_task(_run(plugins, debug_mode))
+        loop.run_forever()
+    finally:
+        loop.stop()
 
 
 if __name__ == '__main__':
