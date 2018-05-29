@@ -59,7 +59,7 @@ def plugin_config():
     }
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def exp_inited_plugins(plugin_config, plugin_kwargs):
     return [
         conftest.EventConsumerStub(

@@ -44,6 +44,7 @@ from gordon import __version__ as version
 from gordon import exceptions
 from gordon import interfaces
 from gordon import plugins_loader
+from gordon import router
 
 
 def _load_config(root=''):
@@ -147,10 +148,30 @@ def _gather_runnable_plugins(plugins, debug):
     return plugins_to_run
 
 
-async def _run(plugins, debug):
+def _gather_implemented_providers(plugins):
+    implemented = {}
+    for plugin in plugins:
+        if interfaces.IEventConsumerClient.providedBy(plugin):
+            implemented['event_consumer'] = plugin
+        elif interfaces.IEnricherClient.providedBy(plugin):
+            implemented['enricher'] = plugin
+        elif interfaces.IPublisherClient.providedBy(plugin):
+            implemented['publisher'] = plugin
+    return implemented
+
+
+def _setup_message_router(plugins, success_channel, error_channel):
+    implemented_plugins = _gather_implemented_providers(plugins)
+    msg_router = router.GordonRouter(
+        success_channel, error_channel, implemented_plugins)
+    return msg_router
+
+
+async def _run(plugins, msg_router, debug):
     _assert_required_plugins(plugins, debug)
     plugins_to_run = _gather_runnable_plugins(plugins, debug)
     tasks = [p.run() for p in plugins_to_run]
+    tasks.append(msg_router.run())
     await asyncio.gather(*tasks)
 
 
@@ -163,12 +184,12 @@ def run(config_root):
     debug_mode = config.get('core', {}).get('debug', False)
 
     # TODO: initialize a metrics object - either here or within `load_plugins`
-    plugin_kwargs = {
+    channels = {
         'success_channel': asyncio.Queue(),
         'error_channel': asyncio.Queue(),
     }
     plugin_names, plugins, errors = plugins_loader.load_plugins(
-        config, plugin_kwargs)
+        config, channels)
     if errors:
         for err_plugin, exc in errors:
             base_msg = 'Plugin was not loaded: {err_plugin}'
@@ -177,10 +198,12 @@ def run(config_root):
     if plugin_names:
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
 
+    msg_router = _setup_message_router(plugins, **channels)
+
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()
     try:
-        loop.create_task(_run(plugins, debug_mode))
+        loop.create_task(_run(plugins, msg_router, debug_mode))
         loop.run_forever()
     finally:
         loop.stop()

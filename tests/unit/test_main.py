@@ -176,10 +176,24 @@ def test_gather_runnable_plugins(patches, exp_plugins, exp_mock_call,
     assert exp_mock_call == mock_log_or_exit_on_exc.call_count
 
 
+def test_gather_implemented_providers(inited_plugins):
+    implemented = main._gather_implemented_providers(inited_plugins.values())
+
+    inited_plugins.pop('runnable')
+
+    assert inited_plugins == implemented
+
+
 @pytest.mark.asyncio
-async def test_run_plugins(inited_plugins):
+async def test_run_plugins(inited_plugins, mocker, monkeypatch):
     """Run all installed plugins."""
-    await main._run(inited_plugins.values(), debug=True)
+    async def mock_run(*args, **kwargs):
+        await asyncio.sleep(0)
+
+    mock_router = mocker.Mock()
+    monkeypatch.setattr(mock_router, 'run', mock_run)
+
+    await main._run(inited_plugins.values(), mock_router, debug=True)
 
     assert 1 == inited_plugins['event_consumer']._mock_run_count
     assert 1 == inited_plugins['runnable']._mock_run_count

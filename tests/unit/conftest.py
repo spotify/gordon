@@ -37,18 +37,20 @@ REGISTERED_ACTIVE_PLUGINS = REGISTERED_PLUGINS[:3]
 
 @zope.interface.implementer(interfaces.IEventConsumerClient)
 class EventConsumerStub:
-    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+    def __init__(self, config, success_channel, error_channel, **kwargs):
         self.config = config
-        self.success_chnl = success_chnl
-        self.error_chnl = error_chnl
+        self.success_channel = success_channel
+        self.error_channel = error_channel
         self._mock_run_count = 0
+        self._mock_cleanup_count = 0
 
     async def run(self):
         await asyncio.sleep(0)
         self._mock_run_count += 1
 
-    async def cleanup(self):
-        pass
+    async def cleanup(self, event_msg):
+        await asyncio.sleep(0)
+        self._mock_cleanup_count += 1
 
     async def shutdown(self):
         pass
@@ -56,13 +58,15 @@ class EventConsumerStub:
 
 @zope.interface.implementer(interfaces.IEnricherClient)
 class EnricherStub:
-    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+    def __init__(self, config, success_channel, error_channel, **kwargs):
         self.config = config
-        self.success_chnl = success_chnl
-        self.error_chnl = error_chnl
+        self.success_channel = success_channel
+        self.error_channel = error_channel
+        self._mock_process_count = 0
 
-    async def process(self):
-        pass
+    async def process(self, event_msg):
+        await asyncio.sleep(0)
+        self._mock_process_count += 1
 
     async def shutdown(self):
         pass
@@ -70,23 +74,25 @@ class EnricherStub:
 
 @zope.interface.implementer(interfaces.IPublisherClient)
 class PublisherStub:
-    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+    def __init__(self, config, success_channel, error_channel, **kwargs):
         self.config = config
-        self.success_chnl = success_chnl
-        self.error_chnl = error_chnl
+        self.success_channel = success_channel
+        self.error_channel = error_channel
+        self._mock_publish_changes_count = 0
 
-    async def publish_changes(self):
-        pass
+    async def publish_changes(self, event_msg):
+        await asyncio.sleep(0)
+        self._mock_publish_changes_count += 1
 
     async def shutdown(self):
         pass
 
 
 class GenericStub:
-    def __init__(self, config, success_chnl, error_chnl, **kwargs):
+    def __init__(self, config, success_channel, error_channel, **kwargs):
         self.config = config
-        self.success_chnl = success_chnl
-        self.error_chnl = error_chnl
+        self.success_channel = success_channel
+        self.error_channel = error_channel
         self._mock_run_count = 0
 
     async def run(self):
@@ -181,11 +187,11 @@ def caplog(caplog):
     return caplog
 
 
-@pytest.fixture(scope='session')
-def plugin_kwargs():
+@pytest.fixture
+def plugin_kwargs(event_loop):
     return {
-        'success_chnl': asyncio.Queue(),
-        'error_chnl': asyncio.Queue(),
+        'success_channel': asyncio.Queue(),
+        'error_channel': asyncio.Queue(),
     }
 
 

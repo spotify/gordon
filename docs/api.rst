@@ -12,6 +12,12 @@ main
 
 .. autofunction:: gordon.main.setup
 
+router
+------
+
+.. automodule:: gordon.router
+.. autoclass:: gordon.router.GordonRouter
+
 
 plugins_loader
 --------------
