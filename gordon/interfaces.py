@@ -120,3 +120,46 @@ class IPublisherClient(IGenericPlugin):
         Args:
             event_msg (IEventMessage): Message ready to be sent to destination.
         """
+
+
+class IMetricRelay(Interface):
+    """Create and publish (push) metrics on demand."""
+
+    def incr(metric_name, value=1):
+        """Increment a metric. Create one if new."""
+
+    def timer(metric_name):
+        """Return a :class:`ITimerMetric`. Create one if new."""
+
+    def set_counter(metric_name, counter):
+        """Set a :class:`ICounterMetric` object to a given metric name."""
+
+    def set_timer(metric_name, timer):
+        """Set a :class:`ITimerMetric` to a given metric name."""
+
+
+class IGenericMetric(Interface):
+    """**Do not** implement this interface directly.
+
+    Use :class:`ICounterMetric` or :class:`ITimerMetric`
+    instead.
+    """
+
+
+class ICounterMetric(IGenericMetric):
+    """Monotonically increasing counter object."""
+
+    value = Attribute('Count value, must start at 0.')
+
+    def incr(value=1):
+        """Increase counter by 1 or a given amount."""
+
+
+class ITimerMetric(IGenericMetric):
+    """Timer for a block of code."""
+    value = Attribute('Timed value, must be a positive number.')
+
+
+class IGaugeMetric(IGenericMetric):
+    """An instantaneous measurement of a value."""
+    value = Attribute('Measured value.')
