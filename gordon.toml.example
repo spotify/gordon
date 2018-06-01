@@ -2,6 +2,7 @@
 [core]
 plugins = ["foo.plugin"]
 debug = false
+metrics = "ffwd"
 
 [core.logging]
 level = "info"
