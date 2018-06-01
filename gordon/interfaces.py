@@ -123,43 +123,16 @@ class IPublisherClient(IGenericPlugin):
 
 
 class IMetricRelay(Interface):
-    """Create and publish (push) metrics on demand."""
+    """Manage Gordon metrics."""
 
     def incr(metric_name, value=1):
-        """Increment a metric. Create one if new."""
+        """Increase counter metric by 1 or a given amount."""
 
     def timer(metric_name):
-        """Return a :class:`ITimerMetric`. Create one if new."""
+        """Time a block of code."""
 
-    def set_counter(metric_name, counter):
-        """Set a :class:`ICounterMetric` object to a given metric name."""
+    def set(metric_name, value):
+        """Set a gauge metric to a given value."""
 
-    def set_timer(metric_name, timer):
-        """Set a :class:`ITimerMetric` to a given metric name."""
-
-
-class IGenericMetric(Interface):
-    """**Do not** implement this interface directly.
-
-    Use :class:`ICounterMetric` or :class:`ITimerMetric`
-    instead.
-    """
-
-
-class ICounterMetric(IGenericMetric):
-    """Monotonically increasing counter object."""
-
-    value = Attribute('Count value, must start at 0.')
-
-    def incr(value=1):
-        """Increase counter by 1 or a given amount."""
-
-
-class ITimerMetric(IGenericMetric):
-    """Timer for a block of code."""
-    value = Attribute('Timed value, must be a positive number.')
-
-
-class IGaugeMetric(IGenericMetric):
-    """An instantaneous measurement of a value."""
-    value = Attribute('Measured value.')
+    def cleanup():
+        """Perform cleanup tasks related to metrics handling."""
