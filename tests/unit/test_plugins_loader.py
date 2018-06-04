@@ -16,8 +16,10 @@
 
 import pkg_resources
 import pytest
+import zope.interface
 
 from gordon import exceptions
+from gordon import interfaces
 from gordon import plugins_loader
 from tests.unit import conftest
 
@@ -272,3 +274,65 @@ def test_load_plugins_exceptions(installed_plugins, loaded_config,
     inited_names, installed_plugins, errors = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
     assert 1 == len(errors)
+
+
+@zope.interface.implementer(interfaces.IMetricRelay)
+class MetricRelayStub:
+    def __init__(self, config):
+        pass
+
+
+@pytest.fixture
+def metrics_mock(mocker):
+    relay_mock = mocker.MagicMock(pkg_resources.EntryPoint)
+    relay_mock.name = 'gordon.plugins.metrics.mock'
+    relay_mock.load.return_value = MetricRelayStub
+    return relay_mock
+
+
+@pytest.fixture
+def plugins_incl_metrics(mocker, monkeypatch, metrics_mock, installed_plugins):
+    all_plugins = installed_plugins.copy()
+    all_plugins['gordon.plugins.metrics.mock'] = metrics_mock
+    mock_iter_entry_points = mocker.Mock(pkg_resources.iter_entry_points)
+    mock_iter_entry_points.return_value = iter(all_plugins.values())
+    monkeypatch.setattr(plugins_loader.pkg_resources, 'iter_entry_points',
+                        mock_iter_entry_points)
+    return all_plugins
+
+
+def test_load_plugins_with_metrics(plugins_incl_metrics, loaded_config,
+                                   exp_inited_plugins, plugin_kwargs,
+                                   metrics_mock):
+    """Plugins are loaded and instantiated with their config and metrics."""
+    loaded_config.update(
+        {'metrics': {'provider': 'gordon.plugins.metrics.mock'}})
+    inited_names, installed_plugins, errors = plugins_loader.load_plugins(
+        loaded_config, plugin_kwargs)
+
+    # assert metrics not included in inited_names
+    assert 3 == len(inited_names) == len(installed_plugins)
+    for plugin_obj in installed_plugins:
+        assert is_instance_of_stub(plugin_obj)
+        assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
+        assert isinstance(plugin_obj.metrics, MetricRelayStub)
+
+
+def test_get_metrics_plugin_succeeds(metrics_mock, plugins_incl_metrics):
+    """MetricRelay should load if both implements interface and configured."""
+    config = {'metrics': {'provider': 'gordon.plugins.metrics.mock'}}
+    actual = plugins_loader._get_metrics_plugin(config, plugins_incl_metrics)
+    assert isinstance(actual, MetricRelayStub)
+
+
+@pytest.mark.parametrize('config,plugin_name', [
+    ({}, 'gordon.plugins.metrics.mock'),
+    ({'metrics': {'provider': 'gordon.plugins.metrics.mock'}}, 'other_name')
+])
+def test_get_metrics_fails(mocker, installed_plugins, metrics_mock, config,
+                           plugin_name):
+    """Return None if config or implementation incorrect."""
+    installed_plugins[plugin_name] = metrics_mock
+
+    actual = plugins_loader._get_metrics_plugin(config, installed_plugins)
+    assert actual is None

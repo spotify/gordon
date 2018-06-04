@@ -147,10 +147,8 @@ class ITimer(Interface):
     async def __aexit__(type, value, traceback):
         """Exit context manager to stop timing."""
 
-
     async def start():
         """Start timing."""
-
 
     async def stop():
         """End timing."""
