@@ -59,6 +59,7 @@ import logging
 import pkg_resources
 
 from gordon import exceptions
+from gordon.metrics import ffwd
 
 
 PLUGIN_NAMESPACE = 'gordon.plugins'
@@ -191,7 +192,9 @@ def _get_metrics_plugin(config, installed_plugins):
     if not metrics_provider:
         return
 
-    metrics_config = config.get(metrics_provider)
+    metrics_config = config.get(metrics_provider, {})
+    if metrics_provider == 'ffwd':
+        return ffwd.SimpleFfwdRelay(metrics_config)
 
     for plugin_name, plugin in installed_plugins.items():
         if metrics_provider == plugin_name:

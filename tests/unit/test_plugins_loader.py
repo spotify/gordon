@@ -21,6 +21,7 @@ import zope.interface
 from gordon import exceptions
 from gordon import interfaces
 from gordon import plugins_loader
+from gordon.metrics import ffwd
 from tests.unit import conftest
 
 
@@ -315,6 +316,13 @@ def test_load_plugins_with_metrics(plugins_incl_metrics, loaded_config,
         assert is_instance_of_stub(plugin_obj)
         assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
         assert isinstance(plugin_obj.metrics, MetricRelayStub)
+
+
+def test_get_metrics_returns_ffwd(loaded_config, plugins_incl_metrics):
+    loaded_config['core'].update({'metrics': 'ffwd'})
+    actual = plugins_loader._get_metrics_plugin(
+        loaded_config, plugins_incl_metrics)
+    assert isinstance(actual, ffwd.SimpleFfwdRelay)
 
 
 def test_get_metrics_returns_plugin(metrics_mock, plugins_incl_metrics):
