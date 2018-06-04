@@ -186,6 +186,22 @@ def _gather_installed_plugins():
     return gathered_plugins
 
 
+def _get_metrics_plugin(config, installed_plugins):
+    metrics_provider = config.get('core', {}).get('metrics')
+    if not metrics_provider:
+        return
+
+    metrics_config = config.get(metrics_provider)
+
+    for plugin_name, plugin in installed_plugins.items():
+        if metrics_provider == plugin_name:
+            plugin_class = plugin.load()
+            return plugin_class(metrics_config)
+
+    msg = f'Metrics Plugin "{metrics_provider}" configured, but not installed'
+    raise exceptions.LoadPluginError(msg)
+
+
 def load_plugins(config, plugin_kwargs):
     """
     Discover and instantiate plugins.
@@ -202,6 +218,10 @@ def load_plugins(config, plugin_kwargs):
         config.
     """
     installed_plugins = _gather_installed_plugins()
+    metrics_plugin = _get_metrics_plugin(config, installed_plugins)
+    if metrics_plugin:
+        plugin_kwargs['metrics'] = metrics_plugin
+
     active_plugins = _get_activated_plugins(config, installed_plugins)
     if not active_plugins:
         return [], [], []
