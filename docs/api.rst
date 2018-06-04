@@ -41,15 +41,3 @@ interfaces
 
 .. autointerface:: gordon.interfaces.IMetricRelay
     :members:
-
-.. autointerface:: gordon.interfaces.ICounterMetric
-    :members:
-
-.. autointerface:: gordon.interfaces.ITimerMetric
-    :members:
-
-.. autointerface:: gordon.interfaces.IGaugeMetric
-    :members:
-
-.. autointerface:: gordon.interfaces.IGenericMetric
-    :members:
