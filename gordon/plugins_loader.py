@@ -60,6 +60,7 @@ import pkg_resources
 
 from gordon import exceptions
 from gordon.metrics import ffwd
+from gordon.metrics import log
 
 
 PLUGIN_NAMESPACE = 'gordon.plugins'
@@ -188,11 +189,12 @@ def _gather_installed_plugins():
 
 
 def _get_metrics_plugin(config, installed_plugins):
-    metrics_provider = config.get('core', {}).get('metrics')
-    if not metrics_provider:
-        return
-
+    metrics_provider = config.get('core', {}).get('metrics', 'metrics-logger')
     metrics_config = config.get(metrics_provider, {})
+
+    if metrics_provider == 'metrics-logger':
+        return log.LogRelay(metrics_config)
+
     if metrics_provider == 'ffwd':
         return ffwd.SimpleFfwdRelay(metrics_config)
 
