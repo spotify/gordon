@@ -125,14 +125,30 @@ class IPublisherClient(IGenericPlugin):
 class IMetricRelay(Interface):
     """Manage Gordon metrics."""
 
-    def incr(metric_name, value=1):
+    async def incr(metric_name, value=1, **kwargs):
         """Increase counter metric by 1 or a given amount."""
 
-    def timer(metric_name):
-        """Time a block of code."""
+    def timer(metric_name, **kwargs):
+        """Get a timer object which implements ITimer."""
 
-    def set(metric_name, value):
+    async def set(metric_name, value, **kwargs):
         """Set a gauge metric to a given value."""
 
-    def cleanup():
+    async def cleanup(**kwargs):
         """Perform cleanup tasks related to metrics handling."""
+
+
+class ITimer(Interface):
+    """Timer support]ing both manual operation and use as a context manager."""
+
+    async def __aenter__():
+        """Enter context manager to start timing."""
+
+    async def __aexit__(type, value, traceback):
+        """Exit context manager to stop timing."""
+
+    async def start():
+        """Start timing."""
+
+    async def stop():
+        """End timing."""
