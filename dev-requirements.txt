@@ -1,2 +1,4 @@
 -r requirements.txt
 -r test-requirements.txt
+-r docs-requirements.txt
+sphinx-autobuild==0.7.1  # reload docs on changes

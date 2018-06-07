@@ -79,6 +79,15 @@ To generate documentation:
 
 Then navigate to ``localhost:$PORT``!
 
+To watch for changes and automatically reload in the browser:
+
+.. code-block:: bash
+
+    (env) $ cd docs
+    (env) $ make livehtml  # default port 8888
+    # to change port
+    (env) $ make livehtml PORT=8080
+
 
 Code of Conduct
 ===============
