@@ -61,7 +61,7 @@ class IGenericPlugin(Interface):
     """
     phase = Attribute('Plugin phase')
 
-    def __init__(config, success_channel, error_channel, metrics=None):
+    def __init__(config, success_channel, error_channel, metrics):
         """Initialize an EventClient object.
 
         Args:
