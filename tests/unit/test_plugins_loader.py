@@ -239,7 +239,7 @@ def test_gather_installed_plugins(mock_iter_entry_points, installed_plugins):
 def test_load_plugins(mock_iter_entry_points, loaded_config, installed_plugins,
                       exp_inited_plugins, plugin_kwargs):
     """Plugins are loaded and instantiated with their config."""
-    inited_names, installed_plugins, errors = plugins_loader.load_plugins(
+    inited_names, installed_plugins, errors, _ = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
 
     assert 3 == len(inited_names) == len(installed_plugins)
@@ -255,7 +255,7 @@ def test_load_plugins_none_loaded(mocker, installed_plugins, plugin_kwargs):
 
     loaded_config = {'core': {}}
 
-    inited_names, installed_plugins, errors = plugins_loader.load_plugins(
+    inited_names, installed_plugins, errors, _ = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
     assert [] == installed_plugins == inited_names == errors
 
@@ -272,7 +272,7 @@ def test_load_plugins_exceptions(installed_plugins, loaded_config,
         conftest.REGISTERED_PLUGINS, inited_plugins_mock, exc)
     monkeypatch.setattr(plugins_loader, '_init_plugins', inited_plugins_mock)
 
-    inited_names, installed_plugins, errors = plugins_loader.load_plugins(
+    inited_names, installed_plugins, errors, _ = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
     assert 1 == len(errors)
 
@@ -306,16 +306,16 @@ def test_load_plugins_with_metrics(plugins_incl_metrics, loaded_config,
                                    metrics_mock):
     """Plugins are loaded and instantiated with their config and metrics."""
     loaded_config['core'].update({'metrics': metrics_mock.name})
-    inited_names, installed_plugins, errors = plugins_loader.load_plugins(
+    names, installed_plugins, errors, metrics = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
 
     # if metrics were included, len() would be 4
-    assert 3 == len(inited_names) == len(installed_plugins)
+    assert 3 == len(names) == len(installed_plugins)
     for plugin_obj in installed_plugins:
         assert not isinstance(plugin_obj, MetricRelayStub)
         assert is_instance_of_stub(plugin_obj)
         assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
-        assert isinstance(plugin_obj.metrics, MetricRelayStub)
+        assert isinstance(metrics, MetricRelayStub)
 
 
 def test_get_metrics_returns_ffwd(loaded_config, plugins_incl_metrics):

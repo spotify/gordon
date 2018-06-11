@@ -41,7 +41,6 @@ class EventConsumerStub:
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
-        self.metrics = metrics
         self._mock_run_count = 0
         self._mock_cleanup_count = 0
 
@@ -64,7 +63,6 @@ class EnricherStub:
         self.success_channel = success_channel
         self.error_channel = error_channel
         self._mock_process_count = 0
-        self.metrics = metrics
 
     async def process(self, event_msg):
         await asyncio.sleep(0)
@@ -81,7 +79,6 @@ class PublisherStub:
         self.success_channel = success_channel
         self.error_channel = error_channel
         self._mock_publish_changes_count = 0
-        self.metrics = metrics
 
     async def publish_changes(self, event_msg):
         await asyncio.sleep(0)
@@ -96,7 +93,6 @@ class GenericStub:
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
-        self.metrics = metrics
         self._mock_run_count = 0
 
     async def run(self):

@@ -227,7 +227,7 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
             conftest.EnricherStub({}, success, error),
             conftest.PublisherStub({}, success, error)
         ]
-    mock_plugins_loader.return_value = names, _plugins, errors
+    mock_plugins_loader.return_value = names, _plugins, errors, mocker.Mock()
     _run_mock = mocker.Mock()
     monkeypatch.setattr('gordon.main._run', _run_mock)
     _log_or_exit_mock = mocker.Mock()
@@ -250,14 +250,15 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
 
 def test_run_cli_raise_exceptions(loaded_config, installed_plugins, caplog,
                                   setup_mock, mock_plugins_loader,
-                                  plugin_exc_mock):
+                                  plugin_exc_mock, mocker):
     """Raise plugin exceptions when not in debug mode via CLI."""
     loaded_config['core']['debug'] = False
     setup_mock.return_value = loaded_config
 
     names = ['event_consumer', 'enricher']
     errors = [('not_a_plugin', plugin_exc_mock)]
-    mock_plugins_loader.return_value = names, installed_plugins, errors
+    mock_plugins_loader.return_value = names, installed_plugins, errors, \
+        mocker.Mock()
 
     runner = CliRunner()
     result = runner.invoke(main.run)
