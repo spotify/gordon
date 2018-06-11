@@ -119,43 +119,46 @@ def mock_log_or_exit_on_exc(mocker, monkeypatch):
 @pytest.mark.parametrize('plugins,exp_log_calls', (
     (('event_consumer', 'enricher', 'publisher', 'runnable'), 0),
     (('event_consumer', 'enricher', 'publisher'), 0),
-    (('event_consumer', 'enricher'), 1),
-    (('event_consumer',), 1),
+    (('runnable', 'enricher'), 0),
     (('runnable',), 1),
+    (('event_consumer',), 0),
+    (('enricher',), 1),
 
 ))
-def test_assert_required_plugins(plugins, exp_log_calls, inited_plugins,
-                                 mock_log_or_exit_on_exc):
+def test_assert_required_plugins(mocker, plugins, exp_log_calls,
+                                 inited_plugins, mock_log_or_exit_on_exc):
     """Assert required plugins are installed, else warn/error out."""
     plugins = [inited_plugins[p] for p in plugins]
-    main._assert_required_plugins(plugins, debug=True)
+    main._gather_plugins_by_type(plugins, debug=True)
 
     assert exp_log_calls == mock_log_or_exit_on_exc.call_count
 
 
-@pytest.mark.parametrize('patches,exp_plugins,exp_mock_call', (
+@pytest.mark.parametrize('patches,exp_mock_call', (
     # provider: async run; gen plugin: async run
-    ([], 2, 0),
+    ([], 0),
     # provider: sync run; gen plugin: async run
-    ([('EventConsumerStub.run', 'set')], 1, 1),
+    ([('EventConsumerStub.run', 'set')], 1),
     # provider: no run; gen plugin: async run
-    ([('EventConsumerStub.run', 'del')], 1, 1),
+    ([('EventConsumerStub.run', 'del')], 1),
     # provider: sync run; gen plugin: sync run
-    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'set')], 0, 1),
+    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'set')], 3),
     # provider: no run; gen plugin: sync run
-    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'set')], 0, 1),
+    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'set')], 3),
     # provider: sync run; gen plugin: no run
-    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'del')], 0, 1),
+    ([('EventConsumerStub.run', 'set'), ('GenericStub.run', 'del')], 3),
     # provider: no run; gen plugin: no run
-    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'del')], 0, 1),
+    ([('EventConsumerStub.run', 'del'), ('GenericStub.run', 'del')], 3),
     # provider: async run; gen plugin: sync run
-    ([('GenericStub.run', 'set')], 1, 0),
+    ([('GenericStub.run', 'set')], 1),
     # provider: async run; gen plugin: no run
-    ([('GenericStub.run', 'del')], 1, 0),
+    ([('GenericStub.run', 'del')], 1),
+    # confirm the same logic works for handle_message
+    ([('EventConsumerStub.handle_message', 'set')], 1),
+    ([('EventConsumerStub.handle_message', 'del')], 1),
 ))
-def test_gather_runnable_plugins(patches, exp_plugins, exp_mock_call,
-                                 monkeypatch, inited_plugins,
-                                 mock_log_or_exit_on_exc):
+def test_gather_plugins_by_type_logs(patches, exp_mock_call, monkeypatch,
+                                     inited_plugins, mock_log_or_exit_on_exc):
 
     def _set_or_delete(patch, action):
         if action == 'del':
@@ -169,19 +172,24 @@ def test_gather_runnable_plugins(patches, exp_plugins, exp_mock_call,
             patch = base_patch + patch
             _set_or_delete(patch, action)
 
-    runnable_plugins = main._gather_runnable_plugins(
-        inited_plugins.values(), debug=True)
+    main._gather_plugins_by_type(inited_plugins.values(), debug=True)
 
-    assert exp_plugins == len(runnable_plugins)
     assert exp_mock_call == mock_log_or_exit_on_exc.call_count
 
 
-def test_gather_implemented_providers(inited_plugins):
-    implemented = main._gather_implemented_providers(inited_plugins.values())
-
-    inited_plugins.pop('runnable')
-
-    assert inited_plugins == implemented
+@pytest.mark.parametrize('input_plugins,exp_mock_call,exp_plugin_count', [
+    (['event_consumer'], 0, (1, 1)),
+    (['event_consumer', 'publisher'], 0, (1, 2)),
+    (['publisher'], 1, (0, 1)),
+    (['runnable'], 1, (1, 0)),
+])
+def test_gather_plugins_by_type(input_plugins, exp_mock_call, exp_plugin_count,
+                                inited_plugins, mock_log_or_exit_on_exc):
+    plugins = [inited_plugins[i] for i in input_plugins]
+    runnable_plugins, message_handlers = \
+        main._gather_plugins_by_type(plugins, debug=True)
+    assert exp_plugin_count == (len(runnable_plugins), len(message_handlers))
+    assert exp_mock_call == mock_log_or_exit_on_exc.call_count
 
 
 @pytest.mark.asyncio
@@ -193,7 +201,9 @@ async def test_run_plugins(inited_plugins, mocker, monkeypatch):
     mock_router = mocker.Mock()
     monkeypatch.setattr(mock_router, 'run', mock_run)
 
-    await main._run(inited_plugins.values(), mock_router, debug=True)
+    runnable_plugins, _ = main._gather_plugins_by_type(
+        inited_plugins.values(), True)
+    await main._run(runnable_plugins, mock_router, debug=True)
 
     assert 1 == inited_plugins['event_consumer']._mock_run_count
     assert 1 == inited_plugins['runnable']._mock_run_count
@@ -209,7 +219,7 @@ def event_loop_mock(mocker, monkeypatch):
 @pytest.mark.parametrize('has_active_plugins,exp_log_count,errors', (
     (True, 2, []),
     (True, 2, [('not_a.plugin', conftest.plugin_exc_mock())]),
-    (False, 1, []),
+    (False, 2, []),
 ))
 def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
                  setup_mock, mock_plugins_loader, mocker, monkeypatch, caplog,
@@ -220,12 +230,14 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
 
     if has_active_plugins:
         names = [
-            'event_consumer.plugin', 'enricher.plugin', 'publisher.plugin']
-        success, error = asyncio.Queue(), asyncio.Queue()
+            'event_consumer.plugin',
+            'enricher.plugin',
+            'publisher.plugin'
+        ]
         _plugins = [
-            conftest.EventConsumerStub({}, success, error),
-            conftest.EnricherStub({}, success, error),
-            conftest.PublisherStub({}, success, error)
+            conftest.EventConsumerStub({}, mocker.Mock(), mocker.Mock()),
+            conftest.EnricherStub({}, None),
+            conftest.PublisherStub({}, None)
         ]
     mock_plugins_loader.return_value = names, _plugins, errors, mocker.Mock()
     _run_mock = mocker.Mock()
