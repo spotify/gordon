@@ -58,16 +58,21 @@ class GordonRouter:
             :class:`gordon.interfaces.IEventMessage` s that were not
             processed due to problems.
         plugins (list): Instantiated message handling plugins.
+        metrics (obj): Implemented :class:`IMetricRelay` interface
+            to emit metrics.
     """
     # TODO (lynn): Ideally this is configurable/extendable in future
     #              iterations of gordon.
     FINAL_PHASES = ('cleanup',)
 
-    def __init__(self, phase_route, success_channel, error_channel, plugins):
+    def __init__(self, phase_route, success_channel, error_channel, plugins,
+                 metrics):
         self.success_channel = success_channel
         self.error_channel = error_channel
         self.phase_plugin_map = self._get_phase_plugin_map(plugins)
         self.phase_route = phase_route
+        self.metrics = metrics
+        self._messages_in_flight = {}
 
     def _get_phase_plugin_map(self, plugins):
         phase_map = {p.phase: p for p in plugins}
@@ -90,20 +95,44 @@ class GordonRouter:
             next_phase = 'cleanup'
         return next_phase
 
-    async def _route(self, event_msg, next_phase=None):
-        if not interfaces.IEventMessage.providedBy(event_msg):
-            msg = (f'Ignoring message "{event_msg.msg_id}". Does not correctly'
-                   ' implement `IEventMessage`.')
-            logging.warn(msg)
-            return
+    async def _update_messages_in_flight(self):
+        in_flight_count = len(self._messages_in_flight)
+        await self.metrics.set(
+            'router-messages-in-flight', value=in_flight_count)
 
-        if not next_phase:
+    async def _add_message_in_flight(self, event_msg):
+        if event_msg.msg_id not in self._messages_in_flight:
+            context = {'unit': 'seconds'}
+            timer = self.metrics.timer(
+                'router-message-flight-duration', context=context)
+            await timer.start()
+            self._messages_in_flight[event_msg.msg_id] = timer
+
+        await self._update_messages_in_flight()
+
+    async def _remove_message_in_flight(self, event_msg):
+        if event_msg.phase in self.FINAL_PHASES:
+            timer = self._messages_in_flight.pop(event_msg.msg_id)
+            await timer.stop()
+
+        await self._update_messages_in_flight()
+
+    async def _route(self, event_msg, force_cleanup=False):
+        if force_cleanup:
+            next_phase = 'cleanup'
+        else:
             next_phase = self._get_next_phase(event_msg)
+
+        context = {
+            'current': event_msg.phase,
+            'next': next_phase,
+        }
+        await self.metrics.incr('router-update-message-phase', context=context)
 
         event_msg.update_phase(next_phase)
         next_plugin = self.phase_plugin_map.get(next_phase)
         if next_phase in self.FINAL_PHASES and not next_plugin:
-            msg = (f'Dropping message"{event_msg.msg_id}", final phase '
+            msg = (f'Dropping message "{event_msg.msg_id}", final phase '
                    f'"{next_phase}" not implemented.')
             logging.debug(msg)
             return
@@ -115,13 +144,30 @@ class GordonRouter:
                 msg = f'Adding message "{event_msg}" to success channel.'
                 event_msg.append_to_history(msg, event_msg.phase)
                 await self.success_channel.put(event_msg)
+            elif next_phase in self.FINAL_PHASES and not force_cleanup:
+                # if we're here, can assume message successfully went thru
+                # the entire phase route and not dropped
+                await self.metrics.incr('router-message-completed')
 
         except Exception as e:
             msg = (f'Routing message "{event_msg}" to cleanup due to exception:'
                    f' "{e}"')
             event_msg.append_to_history(msg, event_msg.phase)
             logging.warn(msg, exc_info=e)
-            await self._route(event_msg, 'cleanup')
+            context = {'error': e.__class__.__name__}
+            await self.metrics.incr('router-message-dropped', context=context)
+            await self._route(event_msg, force_cleanup=True)
+
+    async def _verify_message_impl(self, event_msg):
+        if not interfaces.IEventMessage.providedBy(event_msg):
+            msg = (f'Ignoring message "{event_msg.msg_id}". Does not correctly'
+                   ' implement `IEventMessage`.')
+            logging.warn(msg)
+
+            context = {'error': 'invalid-message-provider'}
+            await self.metrics.incr('router-message-dropped', context=context)
+            return False
+        return True
 
     async def _poll_channel(self):
         while True:
@@ -135,7 +181,13 @@ class GordonRouter:
                 #              to clean up rather than just breaking
                 break
 
+            if not await self._verify_message_impl(event_msg):
+                break
+
+            await self.metrics.incr('router-message-consumed')
+            await self._add_message_in_flight(event_msg)
             await self._route(event_msg)
+            await self._remove_message_in_flight(event_msg)
 
     async def run(self):
         """Entrypoint to route messages between plugins."""
