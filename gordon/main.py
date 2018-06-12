@@ -139,8 +139,9 @@ def _gather_plugins_by_type(plugins, debug):
     return runnable_plugins, message_handling_plugins
 
 
-def _setup_message_router(plugins, success_channel, error_channel):
-    msg_router = router.GordonRouter(success_channel, error_channel, plugins)
+def _setup_router(config, plugins, success_channel, error_channel):
+    msg_router = router.GordonRouter(
+        config, success_channel, error_channel, plugins)
     return msg_router
 
 
@@ -174,7 +175,9 @@ def run(config_root):
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
 
     runnables, message_handlers = _gather_plugins_by_type(plugins, debug_mode)
-    msg_router = _setup_message_router(message_handlers, **channels)
+
+    route_config = config.get('core', {}).get('route', {})
+    msg_router = _setup_router(route_config, message_handlers, **channels)
 
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()

@@ -129,6 +129,11 @@ def loaded_config():
             'logging': {
                 'level': 'debug',
                 'handlers': ['stream'],
+            },
+            'route': {
+                'consume': 'enrich',
+                'enrich': 'publish',
+                'publish': 'cleanup'
             }
         },
         'xyz': {

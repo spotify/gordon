@@ -51,6 +51,7 @@ class GordonRouter:
         be removed entirely from all interface definitions.
 
     Args:
+        phase_route (dict(str, str)): The route messages should follow.
         success_channel (asyncio.Queue): A sink for successfully
             processed :class:`gordon.interfaces.IEventMessage` s.
         error_channel (asyncio.Queue): A sink for
@@ -62,24 +63,11 @@ class GordonRouter:
     #              iterations of gordon.
     FINAL_PHASES = ('cleanup',)
 
-    def __init__(self, success_channel, error_channel, plugins):
+    def __init__(self, phase_route, success_channel, error_channel, plugins):
         self.success_channel = success_channel
         self.error_channel = error_channel
         self.phase_plugin_map = self._get_phase_plugin_map(plugins)
-        self.phase_route = self._setup_phase_route()
-
-    # TODO (lynn): Ideally this is configurable/extendable in future
-    #              iterations of gordon.
-    def _setup_phase_route(self):
-        route = {
-            'consume': 'publish',
-            'publish': 'cleanup',
-            'cleanup': 'cleanup',
-        }
-        if 'enrich' in self.phase_plugin_map:
-            route['consume'] = 'enrich'
-            route['enrich'] = 'publish'
-        return route
+        self.phase_route = phase_route
 
     def _get_phase_plugin_map(self, plugins):
         phase_map = {p.phase: p for p in plugins}

@@ -22,10 +22,11 @@ from gordon import router
 
 
 @pytest.fixture()
-def router_inst(inited_plugins, plugin_kwargs):
+def router_inst(loaded_config, inited_plugins, plugin_kwargs):
     inited_plugins.pop('runnable')
+    route_config = loaded_config['core']['route']
     router_inst = router.GordonRouter(
-            plugins=inited_plugins.values(), **plugin_kwargs)
+            route_config, plugins=inited_plugins.values(), **plugin_kwargs)
     return router_inst
 
 
@@ -78,7 +79,7 @@ def test_init_router(has_enricher, inited_plugins, plugin_kwargs):
         inited_plugins.pop('enricher')
 
     router_inst = router.GordonRouter(
-        plugins=inited_plugins.values(), **plugin_kwargs)
+        exp_phase_route, plugins=inited_plugins.values(), **plugin_kwargs)
 
     assert exp_phase_route == router_inst.phase_route
     for phase, plugin in router_inst.phase_plugin_map.items():

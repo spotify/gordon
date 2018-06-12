@@ -32,7 +32,6 @@ def test_load_config(tmpdir, suffix, config_file, loaded_config):
     conf_file = tmpdir.mkdir('config').join('gordon{}.toml'.format(suffix))
     conf_file.write(config_file)
     config = main._load_config(root=conf_file.dirpath())
-
     assert loaded_config == config
 
 
