@@ -18,7 +18,9 @@
 import codecs
 import os
 import re
-from setuptools import setup, find_packages
+
+from setuptools import find_packages
+from setuptools import setup
 
 
 HERE = os.path.abspath(os.path.dirname(__file__))
@@ -60,10 +62,11 @@ def install_requires():
 #####
 # Project-specific constants
 #####
-NAME = 'gordon'
+NAME = 'gordon-dns'
+PACKAGE_NAME = 'gordon'
 PACKAGES = find_packages(where='.')
-META_PATH = os.path.join(NAME, '__init__.py')
-KEYWORDS = ['dns', 'gcp']
+META_PATH = os.path.join(PACKAGE_NAME, '__init__.py')
+KEYWORDS = ['dns']
 CLASSIFIERS = [
     'Development Status :: 1 - Planning',
     'License :: OSI Approved :: Apache Software License',
@@ -91,6 +94,12 @@ setup(
     maintainer=find_meta('author'),
     maintainer_email=find_meta('email'),
     packages=PACKAGES,
+    entry_points={
+        'console_scripts': [
+            'gordon = gordon.main:run'
+        ],
+        'gordon.plugins': []
+    },
     classifiers=CLASSIFIERS,
     keywords=KEYWORDS,
     zip_safe=False,

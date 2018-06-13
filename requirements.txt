@@ -1,0 +1,6 @@
+click==6.7
+setuptools==38.2.5
+toml==0.9.3.1
+ulogger==1.0.1
+zope.interface==4.4.3
+async-dns==1.0.0

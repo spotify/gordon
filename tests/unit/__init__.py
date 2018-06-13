@@ -13,10 +13,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-__author__ = 'Lynn Root'
-__version__ = '0.0.1.dev2'
-__license__ = 'Apache 2.0'
-__email__ = 'lynn@spotify.com'
-__description__ = 'Event-driven Cloud DNS'
-__uri__ = 'https://github.com/spotify/gordon'
