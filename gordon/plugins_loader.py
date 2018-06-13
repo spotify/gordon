@@ -59,6 +59,7 @@ import logging
 import pkg_resources
 
 from gordon import exceptions
+from gordon.metrics import ffwd
 
 
 PLUGIN_NAMESPACE = 'gordon.plugins'
@@ -186,6 +187,24 @@ def _gather_installed_plugins():
     return gathered_plugins
 
 
+def _get_metrics_plugin(config, installed_plugins):
+    metrics_provider = config.get('core', {}).get('metrics')
+    if not metrics_provider:
+        return
+
+    metrics_config = config.get(metrics_provider, {})
+    if metrics_provider == 'ffwd':
+        return ffwd.SimpleFfwdRelay(metrics_config)
+
+    for plugin_name, plugin in installed_plugins.items():
+        if metrics_provider == plugin_name:
+            plugin_class = plugin.load()
+            return plugin_class(metrics_config)
+
+    msg = f'Metrics Plugin "{metrics_provider}" configured, but not installed'
+    raise exceptions.LoadPluginError(msg)
+
+
 def load_plugins(config, plugin_kwargs):
     """
     Discover and instantiate plugins.
@@ -202,10 +221,15 @@ def load_plugins(config, plugin_kwargs):
         config.
     """
     installed_plugins = _gather_installed_plugins()
+    metrics_plugin = _get_metrics_plugin(config, installed_plugins)
+    if metrics_plugin:
+        plugin_kwargs['metrics'] = metrics_plugin
+
     active_plugins = _get_activated_plugins(config, installed_plugins)
     if not active_plugins:
-        return [], [], []
+        return [], [], [], None
     plugin_namespaces = _get_plugin_config_keys(active_plugins)
     plugin_configs = _load_plugin_configs(plugin_namespaces, config)
-    return _init_plugins(
+    plugin_names, plugins, errors = _init_plugins(
         active_plugins, installed_plugins, plugin_configs, plugin_kwargs)
+    return plugin_names, plugins, errors, metrics_plugin

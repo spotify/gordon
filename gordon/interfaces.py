@@ -61,7 +61,7 @@ class IGenericPlugin(Interface):
     """
     phase = Attribute('Plugin phase')
 
-    def __init__(config, success_channel, error_channel, metrics=None):
+    def __init__(config, success_channel, error_channel, metrics):
         """Initialize an EventClient object.
 
         Args:
@@ -125,14 +125,50 @@ class IPublisherClient(IGenericPlugin):
 class IMetricRelay(Interface):
     """Manage Gordon metrics."""
 
-    def incr(metric_name, value=1):
-        """Increase counter metric by 1 or a given amount."""
+    async def incr(metric_name, value=1, context=None, **kwargs):
+        """Increase a metric by 1 or a given amount.
 
-    def timer(metric_name):
-        """Time a block of code."""
+        Args:
+            metric_name (str): Identifier of the metric.
+            value (int): (optional) Value with which to increase the metric.
+            context (dict): (optional) Additional key-value pairs which further
+                describe the metric, for example: {'remote-host': '1.2.3.4'}
+        """
 
-    def set(metric_name, value):
-        """Set a gauge metric to a given value."""
+    def timer(metric_name, context=None, **kwargs):
+        """Get a timer object which implements ITimer.
 
-    def cleanup():
+        Args:
+            metric_name (str): Identifier of the metric.
+            context (dict): (optional) Additional key-value pairs which further
+                describe the metric, for example: {'unit': 'seconds'}
+        """
+
+    async def set(metric_name, value, context=None, **kwargs):
+        """Set a metric to a given value.
+
+        Args:
+            metric_name (str): Identifier of the metric.
+            value (number): The value of the metric.
+            context (dict): (optional) Additional key-value pairs which further
+                describe the metric, for example: {'app-version': '1.5.3'}
+        """
+
+    async def cleanup(**kwargs):
         """Perform cleanup tasks related to metrics handling."""
+
+
+class ITimer(Interface):
+    """Timer supporting both manual operation and use as a context manager."""
+
+    async def __aenter__():
+        """Enter context manager to start timing."""
+
+    async def __aexit__(type, value, traceback):
+        """Exit context manager to stop timing."""
+
+    async def start():
+        """Start timing."""
+
+    async def stop():
+        """End timing."""

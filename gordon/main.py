@@ -188,7 +188,7 @@ def run(config_root):
         'success_channel': asyncio.Queue(),
         'error_channel': asyncio.Queue(),
     }
-    plugin_names, plugins, errors = plugins_loader.load_plugins(
+    plugin_names, plugins, errors, metrics = plugins_loader.load_plugins(
         config, channels)
     if errors:
         for err_plugin, exc in errors:

@@ -26,6 +26,7 @@ User's Guide
    config
    plugins
    api
+   metrics
 
 
 Project Information

@@ -37,7 +37,7 @@ REGISTERED_ACTIVE_PLUGINS = REGISTERED_PLUGINS[:3]
 
 @zope.interface.implementer(interfaces.IEventConsumerClient)
 class EventConsumerStub:
-    def __init__(self, config, success_channel, error_channel, **kwargs):
+    def __init__(self, config, success_channel, error_channel, metrics=None):
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
@@ -58,7 +58,7 @@ class EventConsumerStub:
 
 @zope.interface.implementer(interfaces.IEnricherClient)
 class EnricherStub:
-    def __init__(self, config, success_channel, error_channel, **kwargs):
+    def __init__(self, config, success_channel, error_channel, metrics=None):
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
@@ -74,7 +74,7 @@ class EnricherStub:
 
 @zope.interface.implementer(interfaces.IPublisherClient)
 class PublisherStub:
-    def __init__(self, config, success_channel, error_channel, **kwargs):
+    def __init__(self, config, success_channel, error_channel, metrics=None):
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
@@ -89,7 +89,7 @@ class PublisherStub:
 
 
 class GenericStub:
-    def __init__(self, config, success_channel, error_channel, **kwargs):
+    def __init__(self, config, success_channel, error_channel, metrics=None):
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
