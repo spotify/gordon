@@ -48,7 +48,7 @@ core
 
     If ``false``, Gordon will exit out if it can't load one or more plugins.
 
-.. option:: metrics="STR"
+.. option:: metrics=STR
 
     The metrics provider to use. Depending on the provider, more
     configuration may be needed. See provider implementation for details.
