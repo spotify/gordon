@@ -25,6 +25,9 @@ class IEventMessage(Interface):
     or cleanup in case of errors.
     """
 
+    msg_id = Attribute('Identifier for the event message instance.')
+    phase = Attribute('Variable phase of the event message.')
+
     def __init__(msg_id, data, history_log, phase=None):
         """Initialize an EventMessage.
 

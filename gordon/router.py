@@ -80,11 +80,11 @@ class GordonRouter:
     def _get_next_phase(self, event_msg):
         try:
             next_phase = self.phase_route[event_msg.phase]
-            msg = f'Routing message {event_msg} to phase "{next_phase}".'
+            msg = f'Routing message {event_msg.msg_id} to "{next_phase}".'
             logging.debug(msg)
 
         except KeyError:
-            msg = (f'Message "{event_msg}" has an unknown phase: '
+            msg = (f'Message "{event_msg.msg_id}" has an unknown phase: '
                    f'"{event_msg.phase}", routing to "cleanup".')
             logging.error(msg)
             next_phase = 'cleanup'
@@ -92,8 +92,8 @@ class GordonRouter:
 
     async def _route(self, event_msg, next_phase=None):
         if not interfaces.IEventMessage.providedBy(event_msg):
-            msg = (f'Ignoring message "{event_msg}". Does not correctly '
-                   'implement `IEventMessage`.')
+            msg = (f'Ignoring message "{event_msg.msg_id}". Does not correctly'
+                   ' implement `IEventMessage`.')
             logging.warn(msg)
             return
 
@@ -103,8 +103,8 @@ class GordonRouter:
         event_msg.update_phase(next_phase)
         next_plugin = self.phase_plugin_map.get(next_phase)
         if next_phase in self.FINAL_PHASES and not next_plugin:
-            msg = (f'Dropping message"{event_msg}", final phase "{next_phase}"'
-                   'not implemented.')
+            msg = (f'Dropping message"{event_msg.msg_id}", final phase '
+                   f'"{next_phase}" not implemented.')
             logging.debug(msg)
             return
 
