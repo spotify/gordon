@@ -48,7 +48,7 @@ core
 
     If ``false``, Gordon will exit out if it can't load one or more plugins.
 
-.. option:: metrics="STR"
+.. option:: metrics=STR
 
     The metrics provider to use. Depending on the provider, more
     configuration may be needed. See provider implementation for details.
@@ -68,3 +68,18 @@ core.logging
     .. note::
 
         If ``stackdriver`` is selected, ``ulogger[stackdriver]`` needs to be installed as its dependencies are not installed by default.
+
+
+core.route
+~~~~~~~~~~
+A table of key-value pairs of phases used to indicate the route the
+a message should take. All keys should correspond to either
+the `start_phase` attribute of a runnable plugin or the `phase` of a message
+handling plugin. Values may only correspond to `phase` of a message handling
+plugin.
+
+.. code-block:: ini
+
+    [core.route]
+    start_phase = "phase2"
+    phase2 = "phase3"

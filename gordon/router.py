@@ -42,27 +42,6 @@ import logging
 from gordon import interfaces
 
 
-# TODO/NOTE (lynn): This is a temporary helper function to alias
-#                   entrypoints of plugins to a common name. In the
-#                   future, plugin interfaces will be updated to have a
-#                   common name for their entrypoint.
-def _set_plugin_entrypoint_aliases(plugin_dict):
-    # e.g. enricher_inst.process => enricher_inst.handle_message
-    entrypoints = {
-        'enricher': 'process',
-        'publisher': 'publish_changes',
-        'event_consumer': 'cleanup',
-    }
-    for plugin_name, func in entrypoints.items():
-        try:
-            plugin = plugin_dict[plugin_name]
-        except KeyError:  # if no enricher
-            continue
-        entry_point = getattr(plugin, func)
-        setattr(plugin, 'handle_message', entry_point)
-    return plugin_dict
-
-
 class GordonRouter:
     """Route messages to the appropriate plugin destination.
 
@@ -72,59 +51,49 @@ class GordonRouter:
         be removed entirely from all interface definitions.
 
     Args:
+        phase_route (dict(str, str)): The route messages should follow.
         success_channel (asyncio.Queue): A sink for successfully
             processed :class:`gordon.interfaces.IEventMessage` s.
         error_channel (asyncio.Queue): A sink for
             :class:`gordon.interfaces.IEventMessage` s that were not
             processed due to problems.
-        plugins (dict): Implemented plugin provider names mapped to
-            their instantiated objects.
+        plugins (list): Instantiated message handling plugins.
     """
     # TODO (lynn): Ideally this is configurable/extendable in future
     #              iterations of gordon.
-    PHASE_TO_PLUGIN_MAPPER = {
-        'enrich': 'enricher',
-        'publish': 'publisher',
-        'cleanup': 'event_consumer',
-    }
     FINAL_PHASES = ('cleanup',)
 
-    def __init__(self, success_channel, error_channel, plugins):
+    def __init__(self, phase_route, success_channel, error_channel, plugins):
         self.success_channel = success_channel
         self.error_channel = error_channel
-        self.plugins = _set_plugin_entrypoint_aliases(plugins)
-        self.phase_route = self._setup_phase_route()
+        self.phase_plugin_map = self._get_phase_plugin_map(plugins)
+        self.phase_route = phase_route
 
-    # TODO (lynn): Ideally this is configurable/extendable in future
-    #              iterations of gordon.
-    def _setup_phase_route(self):
-        route = {
-            'consume': 'publish',
-            'publish': 'cleanup',
-            'cleanup': 'cleanup',
-        }
-        if 'enricher' in self.plugins:
-            route['consume'] = 'enrich'
-            route['enrich'] = 'publish'
-        return route
+    def _get_phase_plugin_map(self, plugins):
+        phase_map = {p.phase: p for p in plugins}
+        if not set(self.FINAL_PHASES) & set(phase_map):
+            msg = (f'None of {self.FINAL_PHASES} implemented, will default'
+                   'to dropping messages at these phases.')
+            logging.warn(msg)
+        return phase_map
 
     def _get_next_phase(self, event_msg):
         try:
             next_phase = self.phase_route[event_msg.phase]
-            msg = f'Routing message {event_msg} to phase "{next_phase}".'
+            msg = f'Routing message {event_msg.msg_id} to "{next_phase}".'
             logging.debug(msg)
 
         except KeyError:
-            msg = (f'Message "{event_msg}" has an unknown phase: '
-                   f'"{event_msg.phase}". Dropping message.')
+            msg = (f'Message "{event_msg.msg_id}" has an unknown phase: '
+                   f'"{event_msg.phase}", routing to "cleanup".')
             logging.error(msg)
             next_phase = 'cleanup'
         return next_phase
 
     async def _route(self, event_msg, next_phase=None):
         if not interfaces.IEventMessage.providedBy(event_msg):
-            msg = (f'Ignoring message "{event_msg}". Does not correctly '
-                   'implement `IEventMessage`.')
+            msg = (f'Ignoring message "{event_msg.msg_id}". Does not correctly'
+                   ' implement `IEventMessage`.')
             logging.warn(msg)
             return
 
@@ -132,11 +101,15 @@ class GordonRouter:
             next_phase = self._get_next_phase(event_msg)
 
         event_msg.update_phase(next_phase)
-        next_plugin_name = self.PHASE_TO_PLUGIN_MAPPER[next_phase]
-        plugin = self.plugins[next_plugin_name]
+        next_plugin = self.phase_plugin_map.get(next_phase)
+        if next_phase in self.FINAL_PHASES and not next_plugin:
+            msg = (f'Dropping message"{event_msg.msg_id}", final phase '
+                   f'"{next_phase}" not implemented.')
+            logging.debug(msg)
+            return
 
         try:
-            await plugin.handle_message(event_msg)
+            await next_plugin.handle_message(event_msg)
             # don't add a successfully dropped message back onto channel
             if next_phase not in self.FINAL_PHASES:
                 msg = f'Adding message "{event_msg}" to success channel.'
@@ -144,7 +117,8 @@ class GordonRouter:
                 await self.success_channel.put(event_msg)
 
         except Exception as e:
-            msg = f'Dropping message "{event_msg}" due to exception: "{e}"'
+            msg = (f'Routing message "{event_msg}" to cleanup due to exception:'
+                   f' "{e}"')
             event_msg.append_to_history(msg, event_msg.phase)
             logging.warn(msg, exc_info=e)
             await self._route(event_msg, 'cleanup')

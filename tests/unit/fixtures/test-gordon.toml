@@ -4,6 +4,11 @@
 plugins = ["xyz.event_consumer", "xyz.enricher", "xyz.publisher"]
 debug = true
 
+[core.route]
+consume = "enrich"
+enrich = "publish"
+publish = "cleanup"
+
 [core.logging]
 level = "debug"
 handlers = ["stream"]

@@ -4,6 +4,10 @@ plugins = ["foo.plugin"]
 debug = false
 metrics = "ffwd"
 
+[core.route]
+consume = "publish"
+publish = "cleanup"
+
 [core.logging]
 level = "info"
 handlers = ["syslog"]
