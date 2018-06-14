@@ -1,6 +1,22 @@
 Changelog
 =========
 
+0.0.1.dev3 (2018-06-14)
+-------------------------
+Added
+~~~~~
+* Add ``IRunnable``, ``IMessageHandler``.
+* Add route configuration requirement.
+
+Changed
+~~~~~~~
+* Require ``IEventMessage`` to have ``phase`` and ``msg_id``.
+
+Removed
+~~~~~~~
+* Remove ``IEventConsumerClient``, ``IEnricherClient``, ``IPublisherClient``.
+
+
 0.0.1.dev2 (2018-06-13)
 -------------------------
 Added

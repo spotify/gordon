@@ -33,13 +33,10 @@ interfaces
 .. autointerface:: gordon.interfaces.IEventMessage
     :members:
 
-.. autointerface:: gordon.interfaces.IEventConsumerClient
+.. autointerface:: gordon.interfaces.IRunnable
     :members:
 
-.. autointerface:: gordon.interfaces.IEnricherClient
-    :members:
-
-.. autointerface:: gordon.interfaces.IPublisherClient
+.. autointerface:: gordon.interfaces.IMessageHandler
     :members:
 
 .. autointerface:: gordon.interfaces.IGenericPlugin

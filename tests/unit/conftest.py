@@ -28,66 +28,64 @@ import zope.interface
 from gordon import interfaces
 
 
-PLUGIN_NAMES = ['event_consumer', 'enricher', 'publisher', 'runnable']
+PLUGIN_NAMES = [
+    'event_consumer',
+    'enricher',
+    'publisher',
+    'runnable'
+]
 # what plugins are registered as within `setup.py:setup.entry_points`
 REGISTERED_PLUGINS = ['xyz.' + p for p in PLUGIN_NAMES]
 ACTIVE_NAMES = PLUGIN_NAMES[:3]
 REGISTERED_ACTIVE_PLUGINS = REGISTERED_PLUGINS[:3]
 
 
-@zope.interface.implementer(interfaces.IEventConsumerClient)
+@zope.interface.implementer(interfaces.IRunnable, interfaces.IMessageHandler)
 class EventConsumerStub:
-    def __init__(self, config, success_channel, error_channel, metrics=None):
+    start_phase = 'consume'
+    phase = 'cleanup'
+
+    def __init__(self, config, success_channel, error_channel, metrics=None,
+                 **kwargs):
         self.config = config
         self.success_channel = success_channel
         self.error_channel = error_channel
         self._mock_run_count = 0
-        self._mock_cleanup_count = 0
+        self._mock_handle_message_count = 0
+
+    async def handle_message(self, event_msg):
+        await asyncio.sleep(0)
+        self._mock_handle_message_count += 1
 
     async def run(self):
         await asyncio.sleep(0)
         self._mock_run_count += 1
 
-    async def cleanup(self, event_msg):
-        await asyncio.sleep(0)
-        self._mock_cleanup_count += 1
-
     async def shutdown(self):
         pass
 
 
-@zope.interface.implementer(interfaces.IEnricherClient)
+@zope.interface.implementer(interfaces.IMessageHandler)
 class EnricherStub:
-    def __init__(self, config, success_channel, error_channel, metrics=None):
-        self.config = config
-        self.success_channel = success_channel
-        self.error_channel = error_channel
-        self._mock_process_count = 0
+    phase = 'enrich'
 
-    async def process(self, event_msg):
+    def __init__(self, config, metrics=None, **kwargs):
+        self.config = config
+        self._mock_handle_message_count = 0
+
+    async def handle_message(self, event_msg):
         await asyncio.sleep(0)
-        self._mock_process_count += 1
+        self._mock_handle_message_count += 1
 
     async def shutdown(self):
         pass
 
 
-@zope.interface.implementer(interfaces.IPublisherClient)
-class PublisherStub:
-    def __init__(self, config, success_channel, error_channel, metrics=None):
-        self.config = config
-        self.success_channel = success_channel
-        self.error_channel = error_channel
-        self._mock_publish_changes_count = 0
-
-    async def publish_changes(self, event_msg):
-        await asyncio.sleep(0)
-        self._mock_publish_changes_count += 1
-
-    async def shutdown(self):
-        pass
+class PublisherStub(EnricherStub):
+    phase = 'publish'
 
 
+@zope.interface.implementer(interfaces.IRunnable)
 class GenericStub:
     def __init__(self, config, success_channel, error_channel, metrics=None):
         self.config = config
@@ -124,11 +122,18 @@ def loaded_config():
     return {
         'core': {
             'plugins': [
-                'xyz.event_consumer', 'xyz.enricher', 'xyz.publisher'],
+                'xyz.event_consumer',
+                'xyz.enricher',
+                'xyz.publisher'],
             'debug': True,
             'logging': {
                 'level': 'debug',
                 'handlers': ['stream'],
+            },
+            'route': {
+                'consume': 'enrich',
+                'enrich': 'publish',
+                'publish': 'cleanup'
             }
         },
         'xyz': {
@@ -142,7 +147,7 @@ def loaded_config():
             },
             'publisher': {
                 'c_key': 'c_value',
-            },
+            }
         }
     }
 

@@ -102,75 +102,51 @@ def _log_or_exit_on_exceptions(base_msg, exc, debug):
         raise SystemExit(1)
 
 
-def _assert_required_plugins(installed_plugins, debug):
-    # enricher not required
-    required_providers_available = {
-        'event_consumer': False,
-        'publisher': False,
-    }
-    for plugin in installed_plugins:
-        if interfaces.IEventConsumerClient.providedBy(plugin):
-            required_providers_available['event_consumer'] = True
-        elif interfaces.IPublisherClient.providedBy(plugin):
-            required_providers_available['publisher'] = True
-
-    missing = []
-    msg = ('The provider for the "{name}" interface is not configured for the '
-           'Gordon service or is not implemented.')
-    for provider, available in required_providers_available.items():
-        if not available:
-            exc = exceptions.MissingPluginError(msg.format(name=provider))
-            missing.append(exc)
-    if missing:
-        base_msg = 'Problem running plugins: '
-        _log_or_exit_on_exceptions(base_msg, missing, debug=debug)
-
-
-def _gather_runnable_plugins(plugins, debug):
-    plugins_to_run = []
+def _gather_plugins_by_type(plugins, debug):
+    runnable_plugins = []
+    message_handling_plugins = []
     for plugin in plugins:
-        if interfaces.IEventConsumerClient.providedBy(plugin):
-            # TODO (lynn): this should be switched out for adding
-            # the "verify interface implementation" ability. See
-            # https://docs.zope.org/zope.interface/verify.html
+        # TODO (lynn): these should be switched out for adding
+        # the "verify interface implementation" ability. See
+        # https://docs.zope.org/zope.interface/verify.html
+        if interfaces.IRunnable.providedBy(plugin):
             if not hasattr(plugin, 'run') or \
                     not asyncio.iscoroutinefunction(plugin.run):
                 msg = (f'Implemention "{plugin}" of the required '
-                       '"IEventConsumerClient" interface does not have the '
+                       '"IRunnable" interface does not have the '
                        'necessary `run` method.')
                 exc = exceptions.InvalidPluginError(msg)
                 _log_or_exit_on_exceptions(msg, exc, debug)
                 continue
-            plugins_to_run.append(plugin)
-        elif hasattr(plugin, 'run') and asyncio.iscoroutinefunction(plugin.run):
-            plugins_to_run.append(plugin)
+            runnable_plugins.append(plugin)
 
-    return plugins_to_run
+        if interfaces.IMessageHandler.providedBy(plugin):
+            if not hasattr(plugin, 'handle_message') or \
+                    not asyncio.iscoroutinefunction(plugin.handle_message):
+                msg = (f'Implemention "{plugin}" of the required '
+                       '"IMessageHandler" interface does not have the '
+                       'necessary `handle_message` method.')
+                exc = exceptions.InvalidPluginError(msg)
+                _log_or_exit_on_exceptions(msg, exc, debug)
+                continue
+            message_handling_plugins.append(plugin)
+
+    if not runnable_plugins or not message_handling_plugins:
+        msg = (f'At least one runnable plugin is required.')
+        exc = exceptions.MissingPluginError(msg)
+        _log_or_exit_on_exceptions(msg, [exc], debug=debug)
+
+    return runnable_plugins, message_handling_plugins
 
 
-def _gather_implemented_providers(plugins):
-    implemented = {}
-    for plugin in plugins:
-        if interfaces.IEventConsumerClient.providedBy(plugin):
-            implemented['event_consumer'] = plugin
-        elif interfaces.IEnricherClient.providedBy(plugin):
-            implemented['enricher'] = plugin
-        elif interfaces.IPublisherClient.providedBy(plugin):
-            implemented['publisher'] = plugin
-    return implemented
-
-
-def _setup_message_router(plugins, success_channel, error_channel):
-    implemented_plugins = _gather_implemented_providers(plugins)
+def _setup_router(config, plugins, success_channel, error_channel):
     msg_router = router.GordonRouter(
-        success_channel, error_channel, implemented_plugins)
+        config, success_channel, error_channel, plugins)
     return msg_router
 
 
-async def _run(plugins, msg_router, debug):
-    _assert_required_plugins(plugins, debug)
-    plugins_to_run = _gather_runnable_plugins(plugins, debug)
-    tasks = [p.run() for p in plugins_to_run]
+async def _run(runnable_plugins, msg_router, debug):
+    tasks = [p.run() for p in runnable_plugins]
     tasks.append(msg_router.run())
     await asyncio.gather(*tasks)
 
@@ -198,12 +174,15 @@ def run(config_root):
     if plugin_names:
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
 
-    msg_router = _setup_message_router(plugins, **channels)
+    runnables, message_handlers = _gather_plugins_by_type(plugins, debug_mode)
+
+    route_config = config.get('core', {}).get('route', {})
+    msg_router = _setup_router(route_config, message_handlers, **channels)
 
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()
     try:
-        loop.create_task(_run(plugins, msg_router, debug_mode))
+        loop.create_task(_run(runnables, msg_router, debug_mode))
         loop.run_forever()
     finally:
         loop.stop()

@@ -58,7 +58,7 @@ def plugin_config():
             'a_key': 'a_value',
             'b_key': 'b_value',
             'c_key': 'c_value',
-        },
+        }
     }
 
 
@@ -70,7 +70,7 @@ def exp_inited_plugins(plugin_config, plugin_kwargs):
         conftest.EnricherStub(
             plugin_config['xyz.enricher'], **plugin_kwargs),
         conftest.PublisherStub(
-            plugin_config['xyz.publisher'], **plugin_kwargs),
+            plugin_config['xyz.publisher'], **plugin_kwargs)
     ]
 
 

@@ -25,6 +25,9 @@ class IEventMessage(Interface):
     or cleanup in case of errors.
     """
 
+    msg_id = Attribute('Identifier for the event message instance.')
+    phase = Attribute('Variable phase of the event message.')
+
     def __init__(msg_id, data, history_log, phase=None):
         """Initialize an EventMessage.
 
@@ -55,14 +58,26 @@ class IEventMessage(Interface):
 class IGenericPlugin(Interface):
     """**Do not** implement this interface directly.
 
-    Use :py:class:`gordon.interfaces.IEventConsumerClient`,
-    :py:class:`gordon.interfaces.IEnricherClient`,
-    or :py:class:`gordon.interfaces.IPublisherClient` instead.
+    Use :py:class:`gordon.interfaces.IRunnable`,
+    or :py:class:`gordon.interfaces.IMessageHandler` instead.
     """
-    phase = Attribute('Plugin phase')
 
-    def __init__(config, success_channel, error_channel, metrics):
-        """Initialize an EventClient object.
+    async def shutdown():
+        """Perform any actions required to gracefully shutdown plugin."""
+
+
+class IRunnable(IGenericPlugin):
+    """Runnable plugin to produce event messages for Gordon to process.
+
+    The plugin also has the ability to send :py:class:`gordon.interfaces
+    EventMessage` objects to both success and error channels. At least
+    one runnable plugin is required to run Gordon.
+    """
+
+    start_phase = Attribute('Starting phase for event messages.')
+
+    def __init__(config, success_channel, error_channel, metrics, **kwargs):
+        """Initialize a runnable plugin.
 
         Args:
             config (dict): Plugin-specific configuration.
@@ -73,52 +88,34 @@ class IGenericPlugin(Interface):
             metrics (obj): Optional obj used to emit metrics.
         """
 
-    async def shutdown():
-        """Gracefully shutdown plugin."""
-
-
-class IEventConsumerClient(IGenericPlugin):
-    """Client for ingesting push/pull events for Gordon to process.
-
-    The client also receives both successful and failed
-    :py:class:`gordon.interfaces.IEventMessage` objects from Gordon in order
-    to perform cleanup if needed.
-    """
-
     async def run():
         """Begin consuming messages using the provided event loop."""
 
-    async def cleanup(event_msg):
-        """Perform cleanup tasks related to a message.
 
-        Args:
-            event_msg (IEventMessage): Message at the end of its life cycle.
-        """
+class IMessageHandler(IGenericPlugin):
+    """Plugin which performs some operation on an event message.
 
-
-class IEnricherClient(IGenericPlugin):
-    """Client for processing (enriching) or filtering events received by Gordon.
-
-    Note that if no extra processing is required, the implementer can
-    immediately push the received event into the success_channel.
+    The Gordon core router will use its `phase_route` to direct messages
+    produced by any runnable plugins the appropriate message handling
+    plugins, identified by their phase attribute. At least
+    one message handling plugin is required to run Gordon.
     """
 
-    async def process(event_msg):
-        """Process message.
+    phase = Attribute('Plugin phase')
+
+    def __init__(config, metrics, **kwargs):
+        """Initialize a message handler.
 
         Args:
-            event_msg (IEventMessage): Message to process.
+            config (dict): Plugin-specific configuration.
+            metrics (obj): Obj used to emit metrics.
         """
 
-
-class IPublisherClient(IGenericPlugin):
-    """Client for publishing processed events to their destination."""
-
-    async def publish_changes(event_msg):
-        """Publish processed event to its destination.
+    async def handle_message(event_message):
+        """Perform some operation on or triggered by an event message.
 
         Args:
-            event_msg (IEventMessage): Message ready to be sent to destination.
+            event_message (IEventMessage): Message on which to operate.
         """
 
 
