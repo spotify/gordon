@@ -239,7 +239,7 @@ def event_loop_mock(mocker, monkeypatch):
 @pytest.mark.parametrize('has_active_plugins,exp_log_count,errors', (
     (True, 2, []),
     (True, 2, [('not_a.plugin', conftest.plugin_exc_mock())]),
-    (False, 2, []),
+    (False, 1, []),
 ))
 def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
                  setup_mock, mock_plugins_loader, mocker, monkeypatch, caplog,
@@ -259,12 +259,15 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
             conftest.EnricherStub({}, None),
             conftest.PublisherStub({}, None)
         ]
-    mock_plugins_loader.return_value = names, _plugins, errors, mocker.Mock()
+    mock_plugins_loader.return_value = (
+        names, _plugins, errors, {'metrics': mocker.Mock()})
     _run_mock = mocker.Mock()
     monkeypatch.setattr('gordon.main._run', _run_mock)
     _log_or_exit_mock = mocker.Mock()
     monkeypatch.setattr('gordon.main._log_or_exit_on_exceptions',
                         _log_or_exit_mock)
+    _setup_router_mock = mocker.Mock()
+    monkeypatch.setattr('gordon.main._setup_router', _setup_router_mock)
 
     runner = CliRunner()
     result = runner.invoke(main.run)

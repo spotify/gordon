@@ -177,12 +177,12 @@ def run(config_root):
     config = setup(os.path.abspath(config_root))
     debug_mode = config.get('core', {}).get('debug', False)
 
-    channels = {
+    plugin_kwargs = {
         'success_channel': asyncio.Queue(),
         'error_channel': asyncio.Queue(),
     }
-    plugin_names, plugins, errors, metrics = plugins_loader.load_plugins(
-        config, channels)
+    plugin_names, plugins, errors, plugin_kwargs = plugins_loader.load_plugins(
+        config, plugin_kwargs)
     if errors:
         for err_plugin, exc in errors:
             base_msg = 'Plugin was not loaded: {err_plugin}'
@@ -195,7 +195,7 @@ def run(config_root):
 
     route_config = config.get('core', {}).get('route', {})
     msg_router = _setup_router(
-        route_config, message_handlers, metrics, **channels)
+        route_config, message_handlers, **plugin_kwargs)
 
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()
