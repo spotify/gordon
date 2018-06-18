@@ -35,6 +35,7 @@ Example:
 import asyncio
 import logging
 import os
+import signal
 
 import click
 import toml
@@ -45,6 +46,23 @@ from gordon import exceptions
 from gordon import interfaces
 from gordon import plugins_loader
 from gordon import router
+
+
+async def shutdown(sig, loop):
+    """Gracefully cancel current tasks when app receives a shutdown signal."""
+    logging.info(f'Received exit signal {sig.name}...')
+    tasks = [task for task in asyncio.Task.all_tasks() if task is not
+             asyncio.tasks.Task.current_task()]
+
+    for task in tasks:
+        logging.debug(f'Cancelling task: {task}')
+        task.cancel()
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    logging.debug(f'Done awaiting cancelled tasks, results: {results}')
+
+    loop.stop()
+    logging.info('Shutdown complete.')
 
 
 def _load_config(root=''):
@@ -139,9 +157,9 @@ def _gather_plugins_by_type(plugins, debug):
     return runnable_plugins, message_handling_plugins
 
 
-def _setup_router(config, plugins, success_channel, error_channel):
+def _setup_router(config, plugins, metrics, success_channel, error_channel):
     msg_router = router.GordonRouter(
-        config, success_channel, error_channel, plugins)
+        config, success_channel, error_channel, plugins, metrics)
     return msg_router
 
 
@@ -159,7 +177,6 @@ def run(config_root):
     config = setup(os.path.abspath(config_root))
     debug_mode = config.get('core', {}).get('debug', False)
 
-    # TODO: initialize a metrics object - either here or within `load_plugins`
     channels = {
         'success_channel': asyncio.Queue(),
         'error_channel': asyncio.Queue(),
@@ -177,15 +194,24 @@ def run(config_root):
     runnables, message_handlers = _gather_plugins_by_type(plugins, debug_mode)
 
     route_config = config.get('core', {}).get('route', {})
-    msg_router = _setup_router(route_config, message_handlers, **channels)
+    msg_router = _setup_router(
+        route_config, message_handlers, metrics, **channels)
 
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()
+
+    # Register shutdown to signals
+
+    for signame in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(
+            signame, lambda: asyncio.ensure_future(shutdown(signame, loop)))
+
     try:
         loop.create_task(_run(runnables, msg_router, debug_mode))
         loop.run_forever()
+
     finally:
-        loop.stop()
+        loop.close()
 
 
 if __name__ == '__main__':

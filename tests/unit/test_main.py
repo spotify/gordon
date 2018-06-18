@@ -15,12 +15,32 @@
 # limitations under the License.
 
 import asyncio
+import signal
 
 import pytest
 from click.testing import CliRunner
 
 from gordon import main
 from tests.unit import conftest
+
+
+#####
+# Tests for service shutdown
+#####
+@pytest.mark.asyncio
+async def test_shutdown(mocker, monkeypatch, caplog, event_loop):
+    async def foo():
+        await asyncio.sleep(0)
+
+    task = asyncio.Task(foo())
+    mock_task = mocker.Mock()
+    mock_task.all_tasks.return_value = [task]
+    monkeypatch.setattr('gordon.main.asyncio.Task', mock_task)
+
+    await main.shutdown(signal.SIGTERM, event_loop)
+
+    assert 4 == len(caplog.records)
+    assert task.cancelled()
 
 
 #####
@@ -211,6 +231,7 @@ async def test_run_plugins(inited_plugins, mocker, monkeypatch):
 @pytest.fixture
 def event_loop_mock(mocker, monkeypatch):
     mock = mocker.Mock()
+    mock.return_value.add_signal_handler = mocker.Mock()
     monkeypatch.setattr('gordon.main.asyncio.get_event_loop', mock)
     return mock.return_value
 
@@ -250,10 +271,11 @@ def test_run_cli(has_active_plugins, exp_log_count, errors, installed_plugins,
 
     assert 0 == result.exit_code
     setup_mock.assert_called_once()
+    assert 3 == event_loop_mock.add_signal_handler.call_count
     event_loop_mock.create_task.assert_called_once_with(
         _run_mock(_plugins, True))
     event_loop_mock.run_forever.assert_called_once_with()
-    event_loop_mock.stop.assert_called_once()
+    event_loop_mock.close.assert_called_once()
     assert exp_log_count == len(caplog.records)
     if errors:
         _log_or_exit_mock.assert_called_once()
