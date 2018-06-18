@@ -1,6 +1,16 @@
 Changelog
 =========
 
+0.0.1.dev4 (2018-06-18)
+-----------------------
+
+Added
+~~~~~
+* Add logging-based default metrics plugin.
+* Emit basic metrics from core router.
+* Add a basic graceful shutdown mechanism.
+
+
 0.0.1.dev3 (2018-06-14)
 -------------------------
 Added
