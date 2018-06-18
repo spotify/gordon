@@ -157,9 +157,9 @@ def _gather_plugins_by_type(plugins, debug):
     return runnable_plugins, message_handling_plugins
 
 
-def _setup_router(config, plugins, success_channel, error_channel):
+def _setup_router(config, plugins, metrics, success_channel, error_channel):
     msg_router = router.GordonRouter(
-        config, success_channel, error_channel, plugins)
+        config, success_channel, error_channel, plugins, metrics)
     return msg_router
 
 
@@ -177,7 +177,6 @@ def run(config_root):
     config = setup(os.path.abspath(config_root))
     debug_mode = config.get('core', {}).get('debug', False)
 
-    # TODO: initialize a metrics object - either here or within `load_plugins`
     channels = {
         'success_channel': asyncio.Queue(),
         'error_channel': asyncio.Queue(),
@@ -195,7 +194,8 @@ def run(config_root):
     runnables, message_handlers = _gather_plugins_by_type(plugins, debug_mode)
 
     route_config = config.get('core', {}).get('route', {})
-    msg_router = _setup_router(route_config, message_handlers, **channels)
+    msg_router = _setup_router(
+        route_config, message_handlers, metrics, **channels)
 
     logging.info(f'Starting gordon v{version}...')
     loop = asyncio.get_event_loop()
