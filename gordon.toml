@@ -3,4 +3,9 @@
 level = "debug"
 handlers = ["syslog"]
 
-# Extension Config
+[core]
+metrics = "metrics-logger"
+
+[metrics-logger]
+log_level = "info"
+time_unit = 1
