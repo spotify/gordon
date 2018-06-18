@@ -234,4 +234,4 @@ def load_plugins(config, plugin_kwargs):
     plugin_configs = _load_plugin_configs(plugin_namespaces, config)
     plugin_names, plugins, errors = _init_plugins(
         active_plugins, installed_plugins, plugin_configs, plugin_kwargs)
-    return plugin_names, plugins, errors, metrics_plugin
+    return plugin_names, plugins, errors, plugin_kwargs

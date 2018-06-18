@@ -306,7 +306,7 @@ def test_load_plugins_with_metrics(plugins_incl_metrics, loaded_config,
                                    metrics_mock):
     """Plugins are loaded and instantiated with their config and metrics."""
     loaded_config['core'].update({'metrics': metrics_mock.name})
-    names, installed_plugins, errors, metrics = plugins_loader.load_plugins(
+    names, installed_plugins, errors, plugin_kw = plugins_loader.load_plugins(
         loaded_config, plugin_kwargs)
 
     # if metrics were included, len() would be 4
@@ -315,7 +315,7 @@ def test_load_plugins_with_metrics(plugins_incl_metrics, loaded_config,
         assert not isinstance(plugin_obj, MetricRelayStub)
         assert is_instance_of_stub(plugin_obj)
         assert any([p.config == plugin_obj.config for p in exp_inited_plugins])
-        assert isinstance(metrics, MetricRelayStub)
+        assert isinstance(plugin_kw['metrics'], MetricRelayStub)
 
 
 def test_get_metrics_returns_ffwd(loaded_config, plugins_incl_metrics):

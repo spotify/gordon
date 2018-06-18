@@ -1,6 +1,15 @@
 Changelog
 =========
 
+
+0.0.1.dev5 (2018-06-18)
+-----------------------
+
+Fixed
+~~~~~
+* Provide router setup with correct number of arguments.
+
+
 0.0.1.dev4 (2018-06-18)
 -----------------------
 
