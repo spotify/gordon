@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
+
 import pytest
 import zope.interface
 
@@ -306,9 +308,27 @@ async def test_poll_channel(enricher, raises, router_inst, event_msg, caplog,
     await router_inst.success_channel.put(event_msg)
     await router_inst.success_channel.put(None)
     await router_inst._poll_channel()
+    await router_inst._poll_channel()
 
     assert 1 == mock_route_call_count
     assert [((event_msg,), {})] == mock_route_call_args
+
+
+@pytest.mark.asyncio
+async def test_poll_channel_empty(router_inst, mocker, monkeypatch):
+    mock_channel_get_call_count = 0
+
+    async def mock_channel_get(*args, **kwargs):
+        nonlocal mock_channel_get_call_count
+        mock_channel_get_call_count += 1
+
+    monkeypatch.setattr(router_inst.success_channel, 'get', mock_channel_get)
+
+    assert router_inst.success_channel.empty()  # sanity check
+
+    await router_inst._poll_channel()
+
+    assert not mock_channel_get_call_count
 
 
 @pytest.mark.asyncio
@@ -394,10 +414,36 @@ def event_loop_mock(mocker, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_run(caplog, event_loop_mock, router_inst, mocker, monkeypatch):
-    poll_mock = mocker.Mock()
-    monkeypatch.setattr(router_inst, '_poll_channel', poll_mock)
 
-    await router_inst.run()
+    mock_poll_channel_call_count = 0
 
-    event_loop_mock.create_task.assert_called_once_with(poll_mock.return_value)
+    async def mock_poll_channel(*args, **kwargs):
+        nonlocal mock_poll_channel_call_count
+        mock_poll_channel_call_count += 1
+
+    mock_wait_call_count = 0
+
+    async def mock_wait(coroutines, timeout=None):
+        nonlocal mock_wait_call_count
+
+        if mock_wait_call_count > 0:
+            for coro in coroutines:
+                coro.close()
+            raise asyncio.CancelledError()
+
+        mock_wait_call_count += 1
+        for coro in coroutines:
+            await coro
+        return (coroutines, set())
+
+    monkeypatch.setattr(router_inst, '_poll_channel', mock_poll_channel)
+    monkeypatch.setattr(asyncio, 'wait', mock_wait)
+
+    try:
+        await router_inst.run()
+    except asyncio.CancelledError:
+        pass
+
     assert 1 == len(caplog.records)
+    assert 1 == mock_wait_call_count
+    assert 1 == mock_poll_channel_call_count
