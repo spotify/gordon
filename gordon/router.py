@@ -171,7 +171,7 @@ class GordonRouter:
         return True
 
     async def _poll_channel(self):
-        while True:
+        if not self.success_channel.empty():
             event_msg = await self.success_channel.get()
 
             # graceful shutdown
@@ -180,10 +180,10 @@ class GordonRouter:
                 logging.info(msg)
                 # TODO (lynn): potentially propagate signal all plugins
                 #              to clean up rather than just breaking
-                break
+                return
 
             if not await self._verify_message_impl(event_msg):
-                break
+                return
 
             await self.metrics.incr('router-message-consumed')
             await self._add_message_in_flight(event_msg)
@@ -193,5 +193,9 @@ class GordonRouter:
     async def run(self):
         """Entrypoint to route messages between plugins."""
         logging.info('Starting message router...')
-        loop = asyncio.get_event_loop()
-        loop.create_task(self._poll_channel())
+
+        coroutines = set()
+        while True:
+            coro = self._poll_channel()
+            coroutines.add(coro)
+            _, coroutines = await asyncio.wait(coroutines, timeout=0.1)
