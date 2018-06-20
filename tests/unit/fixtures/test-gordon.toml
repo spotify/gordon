@@ -12,6 +12,8 @@ publish = "cleanup"
 [core.logging]
 level = "debug"
 handlers = ["stream"]
+format = "%(created)f %(levelno)d %(message)s"
+date_format = "%Y-%m-%dT%H:%M:%S"
 
 # Plugin Config
 [xyz]
