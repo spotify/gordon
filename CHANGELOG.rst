@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.0.1.dev6 (2018-06-20)
+-----------------------
+
+Fixed
+~~~~~
+* Fix routing for handling more than one message at a time.
+* Improve warning log messages when loading plugin phase route.
+
 
 0.0.1.dev5 (2018-06-18)
 -----------------------
