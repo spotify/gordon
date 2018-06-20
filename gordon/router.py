@@ -77,8 +77,9 @@ class GordonRouter:
     def _get_phase_plugin_map(self, plugins):
         phase_map = {p.phase: p for p in plugins}
         if not set(self.FINAL_PHASES) & set(phase_map):
-            msg = (f'None of {self.FINAL_PHASES} implemented, will default'
-                   'to dropping messages at these phases.')
+            msg = ('No plugin implements a final phase, defaulting to '
+                   'drop messages that are routed to these phases: '
+                   f'{",".join(self.FINAL_PHASES)}.')
             logging.warn(msg)
         return phase_map
 
