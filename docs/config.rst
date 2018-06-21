@@ -77,8 +77,8 @@ Other key-value pairs as supported by `ulogger`_ will be passed into the configu
     level = "info"
     handlers = ["syslog"]
     address = ["10.99.0.1", "514"]
-    format = "%(created)f %(levelno)d %(message)s"
-    date_format = "%Y-%m-%dT%H:%M:%S"
+    fmt = "%(created)f %(levelno)d %(message)s"
+    date_fmt = "%Y-%m-%dT%H:%M:%S"
 
 
 core.route
