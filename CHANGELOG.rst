@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.0.1.dev7 (2018-06-21)
+-----------------------
+
+Fixed
+~~~~~
+* Add support for ulogger configuration.
+
+
 0.0.1.dev6 (2018-06-20)
 -----------------------
 

@@ -95,12 +95,14 @@ def setup(config_root=''):
     """
     config = _load_config(root=config_root)
 
-    logging_config = config.get('core', {}).get('logging', {})
-    log_level = logging_config.get('level', 'INFO').upper()
-    log_handlers = logging_config.get('handlers') or ['syslog']
+    logging_config = config.get('core', {}).get('logging', {}).copy()
+
+    log_level = logging_config.pop('level', 'INFO').upper()
+    log_handlers = logging_config.pop('handlers', ['syslog'])
 
     ulogger.setup_logging(
-        progname='gordon', level=log_level, handlers=log_handlers)
+        progname='gordon', level=log_level, handlers=log_handlers,
+        **logging_config)
 
     return config
 

@@ -69,6 +69,17 @@ core.logging
 
         If ``stackdriver`` is selected, ``ulogger[stackdriver]`` needs to be installed as its dependencies are not installed by default.
 
+Other key-value pairs as supported by `ulogger`_ will be passed into the configured handlers. For example:
+
+.. code-block:: ini
+
+    [core.logging]
+    level = "info"
+    handlers = ["syslog"]
+    address = ["10.99.0.1", "514"]
+    format = "%(created)f %(levelno)d %(message)s"
+    date_format = "%Y-%m-%dT%H:%M:%S"
+
 
 core.route
 ~~~~~~~~~~
@@ -83,3 +94,6 @@ plugin.
     [core.route]
     start_phase = "phase2"
     phase2 = "phase3"
+
+
+.. _`ulogger`: https://github.com/spotify/ulogger

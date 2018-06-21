@@ -129,6 +129,8 @@ def loaded_config():
             'logging': {
                 'level': 'debug',
                 'handlers': ['stream'],
+                'format': '%(created)f %(levelno)d %(message)s',
+                'date_format': '%Y-%m-%dT%H:%M:%S',
             },
             'route': {
                 'consume': 'enrich',

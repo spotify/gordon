@@ -77,8 +77,12 @@ def test_setup(tmpdir, mocker, monkeypatch, config_file, loaded_config):
 
     assert loaded_config == config
 
+    exp_kwargs = {
+        'format': '%(created)f %(levelno)d %(message)s',
+        'date_format': '%Y-%m-%dT%H:%M:%S',
+    }
     ulogger_mock.setup_logging.assert_called_once_with(
-        progname='gordon', level='DEBUG', handlers=['stream'])
+        progname='gordon', level='DEBUG', handlers=['stream'], **exp_kwargs)
 
 
 #####
