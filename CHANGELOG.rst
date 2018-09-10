@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.0.1.dev8 (2018-09-07)
+-----------------------
+
+Changed
+~~~~~~~
+* Remove mutation of the context passed to ffwd plugin.
+
+
 0.0.1.dev7 (2018-06-21)
 -----------------------
 

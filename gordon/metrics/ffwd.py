@@ -150,8 +150,9 @@ class SimpleFfwdRelay:
         self.time_unit = config.get('time_unit')
 
     def _create_metric(self, metric_name, value, context, **kwargs):
-        attrs = context or {}
-        attrs['what'] = metric_name
+        attrs = {'what': metric_name}
+        if context:
+            attrs.update(context)
 
         metric = {
             'key': self.key,
