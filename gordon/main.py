@@ -65,18 +65,28 @@ async def shutdown(sig, loop):
     logging.info('Shutdown complete.')
 
 
+def _deep_merge_dict(a, b):
+    """Additively merge right side dict into left side dict."""
+    for k, v in b.items():
+        if k in a and isinstance(a[k], dict) and isinstance(v, dict):
+            _deep_merge_dict(a[k], v)
+        else:
+            a[k] = v
+
+
 def _load_config(root=''):
     conf, error = {}, False
     conf_files = ['gordon.toml', 'gordon-user.toml']
     for conf_file in conf_files:
         try:
             with open(os.path.join(root, conf_file), 'r') as f:
-                conf.update(toml.load(f))
-        except IOError:
-            error = True
+                _deep_merge_dict(conf, (toml.load(f)))
+        except IOError as e:
+            error = e
 
     if error and conf == {}:
-        raise IOError(f'Cannot load Gordon configuration file from "{root}".')
+        raise IOError(
+            f'Cannot load Gordon configuration file from "{root}": {error}.')
     return conf
 
 
