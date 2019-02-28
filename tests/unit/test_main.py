@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import asyncio
+import copy
 import signal
 
 import pytest
@@ -62,6 +63,37 @@ def test_load_config_raises(tmpdir):
         main._load_config(root=dir_with_no_conf.dirpath())
 
     assert e.match('Cannot load Gordon configuration file from')
+
+
+def test_load_config_deep_merges(tmpdir, config_file, loaded_config):
+    """Additively merge user file to main config."""
+    config_dir = tmpdir.mkdir('mergeconfig')
+    main_conf_file = config_dir.join('gordon.toml')
+    main_conf_file.write(config_file)
+
+    user_conf_file = config_dir.join('gordon-user.toml')
+    user_conf_file.write('[core.logging]\nlevel = "error"\n')
+
+    config = main._load_config(root=config_dir.strpath)
+
+    expected_config = copy.deepcopy(loaded_config)
+    expected_config['core']['logging']['level'] = 'error'
+    assert expected_config == config
+
+
+@pytest.mark.parametrize('a,b,expected', [
+    ({'a': 1}, {'b': 2}, {'a': 1, 'b': 2}),
+    ({'a': 1}, {'a': 2}, {'a': 2}),
+    ({'a': {'a1': 1}}, {'a': {'a2': 2}}, {'a': {'a1': 1, 'a2': 2}}),
+    ({'a': {'a1': 1}}, {'a': {'a1': 2}}, {'a': {'a1': 2}}),
+    ({}, {'a': {'a1': 1}}, {'a': {'a1': 1}}),
+    ({'a': None}, {'a': {'a1': 1}}, {'a': {'a1': 1}}),
+    ({'a': {'a1': 1}}, {'a': None}, {'a': None}),
+    ({'a': {'a1': 1}}, {'a': {}}, {'a': {'a1': 1}})
+])
+def test_deep_merge_dict(a, b, expected):
+    main._deep_merge_dict(a, b)
+    assert expected == a
 
 
 def test_setup(tmpdir, mocker, monkeypatch, config_file, loaded_config):
