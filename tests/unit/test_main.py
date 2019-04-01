@@ -136,32 +136,36 @@ def mock_plugins_loader(mocker, monkeypatch):
     return mock_plugins_loader
 
 
-def test_log_or_exit_on_exceptions_no_debug(plugin_exc_mock, mocker,
-                                            monkeypatch):
+@pytest.mark.parametrize('error_type', ['list', 'obj'])
+def test_log_or_exit_on_exceptions_no_debug(
+        error_type, plugin_exc_mock, caplog, capsys):
     """Raise SystemExit if debug flag is off."""
-    logging_mock = mocker.MagicMock(main.logging, autospec=True)
-    monkeypatch.setattr(main, 'logging', logging_mock)
-
-    errors = [('bad.plugin', plugin_exc_mock)]
+    error = plugin_exc_mock
+    if error_type == 'list':
+        error = [error]
     with pytest.raises(SystemExit) as e:
-        main._log_or_exit_on_exceptions('base msg', errors, debug=False)
-
+        main._log_or_exit_on_exceptions('base msg', error, debug=False)
     e.match('1')
-    logging_mock.error.assert_called_once()
-    logging_mock.warn.assert_not_called()
+
+    assert 1 == len(caplog.records)
+    for record in caplog.records:
+        assert 'ERROR' == record.levelname
+
+    # Assert the bug from https://github.com/spotify/gordon-janitor/pull/14
+    # has not reappeared.
+    out, err = capsys.readouterr()
+    assert '--- Logging error ---' not in err
 
 
-def test_log_or_exit_on_exceptions_debug(plugin_exc_mock, mocker, monkeypatch):
+def test_log_or_exit_on_exceptions_debug(
+        plugin_exc_mock, mocker, monkeypatch, caplog, capsys):
     """Do not exit out if debug flag is on."""
-    logging_mock = mocker.MagicMock(main.logging, autospec=True)
-    monkeypatch.setattr(main, 'logging', logging_mock)
+    msg, error = 'Plugin not loaded "bad.plugin"', plugin_exc_mock
+    main._log_or_exit_on_exceptions(msg, error, debug=True)
 
-    errors = [('bad.plugin', plugin_exc_mock)]
-
-    main._log_or_exit_on_exceptions('base msg', errors, debug=True)
-
-    logging_mock.warn.assert_called_once()
-    logging_mock.error.assert_not_called()
+    assert 1 == len(caplog.records)
+    for record in caplog.records:
+        assert 'WARNING' == record.levelname
 
 
 @pytest.fixture
