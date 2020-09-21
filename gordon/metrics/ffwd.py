@@ -149,8 +149,9 @@ class SimpleFfwdRelay:
             config.get('ffwd_ip'), config.get('ffwd_port'))
         self.time_unit = config.get('time_unit')
 
-    def _create_metric(self, metric_name, value, context, **kwargs):
-        attrs = {'what': metric_name}
+    def _create_metric(self, metric_type, metric_name, value, context,
+                       **kwargs):
+        attrs = {'what': metric_name, 'metric_type': metric_type}
         if context:
             attrs.update(context)
 
@@ -182,7 +183,8 @@ class SimpleFfwdRelay:
             context (dict): (optional) Additional key-value pairs which further
                 describe the metric, for example: {'unit': 'seconds'}
         """
-        metric = self._create_metric(metric_name, None, context, **kwargs)
+        metric = self._create_metric('timer', metric_name, None, context,
+                                     **kwargs)
         return FfwdTimer(metric, self.udp_client, self.time_unit)
 
     async def set(self, metric_name, value, context=None, **kwargs):
@@ -194,7 +196,8 @@ class SimpleFfwdRelay:
             context (dict): (optional) Additional key-value pairs which further
                 describe the metric, for example: {'app-version': '1.5.3'}
         """
-        metric = self._create_metric(metric_name, value, context, **kwargs)
+        metric = self._create_metric('meter', metric_name, value, context,
+                                     **kwargs)
         await self.udp_client.send(metric)
 
     async def cleanup(self):
