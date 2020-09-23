@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.0.1.dev10 (2020-09-23)
+------------------------
+
+Changed
+~~~~~~~
+* Include metric type in attributes when sending metrics.
+
+
 0.0.1.dev9 (2019-02-28)
 -----------------------
 
