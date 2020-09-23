@@ -138,10 +138,10 @@ def test_ffwdrelay_create_metric(test_config, key_name_val, kwargs):
     key, name, val = key_name_val
     test_config['key'] = key
     relay = ffwd.SimpleFfwdRelay(test_config)
-    actual = relay._create_metric(name, val, **kwargs)
+    actual = relay._create_metric('meter', name, val, **kwargs)
 
     attrs = kwargs['context'] or {}
-    attrs.update({'what': name})
+    attrs.update({'metric_type': 'meter', 'what': name})
     expected = {
         'key': key,
         'attributes': attrs,
@@ -164,7 +164,9 @@ def ffwdrelay_and_metrics_sent(test_config, mock_udp_client_and_metrics_sent):
 async def test_ffwdrelay_incr(ffwdrelay_and_metrics_sent, kwargs):
     """Creates and sends metrics with value 1."""
     ffwdrelay, metrics_sent = ffwdrelay_and_metrics_sent
-    expected = [ffwdrelay._create_metric('some-increasing-value', 1, **kwargs)]
+    expected = [
+        ffwdrelay._create_metric('meter', 'some-increasing-value', 1, **kwargs)
+    ]
     await ffwdrelay.incr('some-increasing-value', **kwargs)
     assert expected == metrics_sent
 
@@ -177,7 +179,8 @@ def ffwdrelay(ffwdrelay_and_metrics_sent):
 @pytest.mark.parametrize('kwargs', TEST_KWARGS)
 def test_ffwdrelay_timer(ffwdrelay, kwargs):
     """Returns initialized timer."""
-    expected_metric = ffwdrelay._create_metric('some-timer', None, **kwargs)
+    expected_metric = ffwdrelay._create_metric('timer', 'some-timer', None,
+                                               **kwargs)
     actual = ffwdrelay.timer('some-timer', **kwargs)
     assert isinstance(actual, ffwd.FfwdTimer)
     assert expected_metric == actual.metric
@@ -191,7 +194,7 @@ async def test_ffwdrelay_set(ffwdrelay_and_metrics_sent, kwargs):
     """Creates and sends metric with arbitrary value."""
     ffwdrelay, metrics_sent = ffwdrelay_and_metrics_sent
     expected = [
-        ffwdrelay._create_metric('some-measure', 42, **kwargs)
+        ffwdrelay._create_metric('meter', 'some-measure', 42, **kwargs)
     ]
     await ffwdrelay.set('some-measure', 42, **kwargs)
     assert expected == metrics_sent
