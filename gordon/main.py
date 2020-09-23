@@ -195,10 +195,9 @@ def run(config_root):
     }
     plugin_names, plugins, errors, plugin_kwargs = plugins_loader.load_plugins(
         config, plugin_kwargs)
-    if errors:
-        for err_plugin, exc in errors:
-            base_msg = 'Plugin was not loaded: {err_plugin}'
-            _log_or_exit_on_exceptions(base_msg, exc, debug=debug_mode)
+    for err_plugin, exc in errors:
+        base_msg = f'Plugin was not loaded: {err_plugin}'
+        _log_or_exit_on_exceptions(base_msg, exc, debug=debug_mode)
 
     if plugin_names:
         logging.info(f'Loaded {len(plugin_names)} plugins: {plugin_names}.')
