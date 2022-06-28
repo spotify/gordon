@@ -16,3 +16,5 @@ prune docs/_build
 # No need for GitHub-specific files.
 prune .github
 exclude .travis.yml
+
+exclude catalog-info.yaml
