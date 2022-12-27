@@ -1,5 +1,5 @@
 click==6.7
-setuptools==38.2.5
+setuptools==65.5.1
 toml==0.9.4
 ulogger==1.0.2
 zope.interface==4.4.3
